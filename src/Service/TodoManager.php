@@ -201,22 +201,37 @@ class TodoManager
      */
     public function complete(int $id, ?int $userId = null): bool
     {
+        $todo = $this->repository->findById($id);
+        if (!$todo) {
+            return false;
+        }
+
         $data = [
             'status' => TodoStatus::Completed->value,
             'completed_at' => new \DateTimeImmutable(),
+            'updated_by_user_id' => $userId,
         ];
 
-        $success = $this->update($id, $data, $userId);
+        // Update directly in the repository to avoid dispatching the generic UPDATED event
+        $success = $this->repository->update($id, $data);
 
         if ($success) {
-            // Log completion
+            // Log audit
             $this->auditLogger->logComplete($id, $userId);
 
-            // Dispatch event
-            $todo = $this->repository->findById($id);
-            if ($todo) {
-                $event = new TodoEvent($todo);
+            // Dispatch only the COMPLETED event
+            $completedTodo = $this->repository->findById($id);
+            if ($completedTodo) {
+                $event = new TodoEvent($completedTodo, $todo);
                 $this->eventDispatcher->dispatch($event, TodoEvents::COMPLETED);
+            }
+
+            // Dispatch async message if enabled
+            if ($this->isAsyncEnabled()) {
+                $this->messageBus->dispatch(new TodoOperationMessage(
+                    operation: 'completed',
+                    todoId: $id
+                ));
             }
         }
 
@@ -351,6 +366,6 @@ class TodoManager
      */
     private function isAsyncEnabled(): bool
     {
-        return ($this->config['async']['enabled'] ?? true);
+        return ($this->config['async']['enabled'] ?? false);
     }
 }

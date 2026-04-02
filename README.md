@@ -15,13 +15,13 @@ A production-grade, feature-rich todo/task management bundle for Pimcore 11, 12,
 - ✅ **Soft Deletes**: Safe deletion with recovery capability
 
 ### Advanced Features
-- ✅ **Workflow Integration**: Full Pimcore workflow support with state management
 - ✅ **Audit Trail**: Complete change history with field-level tracking
-- ✅ **Real-time Updates**: Live synchronization across users (Studio UI)
 - ✅ **Async Processing**: Message queue integration for performance
 - ✅ **Security**: Three-tier permission system (View, Manage, Admin)
 - ✅ **Flexible Metadata**: JSON meta field for custom attributes
-- ✅ **Multi-language**: Full i18n support (English, German included)
+- ⬜ **Real-time Updates**: Live synchronization via Mercure SSE (requires `symfony/mercure-bundle`, not yet implemented)
+- ⬜ **Multi-language**: i18n support planned (not yet implemented)
+- ⬜ **Workflow Integration**: Pimcore workflow state management (configuration exists, implementation pending)
 
 ### Technical Excellence
 - ✅ **Pimcore 11 & 12 Compatible**: Works with both major versions
@@ -30,7 +30,7 @@ A production-grade, feature-rich todo/task management bundle for Pimcore 11, 12,
 - ✅ **React 18 + TypeScript**: Type-safe Studio UI integration
 - ✅ **RESTful API**: Clean, well-documented API endpoints
 - ✅ **CLI Commands**: Powerful command-line tools
-- ✅ **Comprehensive Tests**: Unit and integration test coverage
+- ⬜ **Comprehensive Tests**: Integration test coverage in progress
 - ✅ **Full Documentation**: Inline docs, README, and API documentation
 
 ## 📋 Requirements
@@ -60,7 +60,16 @@ return [
 ];
 ```
 
-### Step 3: Install Bundle
+### Step 3: Register Routes
+
+Create `config/routes/studio_todo.yaml` in your Pimcore application:
+
+```yaml
+studio_todo_api:
+    resource: '@StudioTodoBundle/Resources/config/routes.yaml'
+```
+
+### Step 5: Install Bundle
 
 ```bash
 bin/console pimcore:bundle:install StudioTodoBundle
@@ -71,13 +80,13 @@ This command will:
 - Create the `todo_audit_log` table for change tracking
 - Register three permissions: `studio_todo_view`, `studio_todo_manage`, `studio_todo_admin`
 
-### Step 4: Clear Cache
+### Step 6: Clear Cache
 
 ```bash
 bin/console cache:clear
 ```
 
-### Step 5: (Optional) Configure the Bundle
+### Step 7: (Optional) Configure the Bundle
 
 Create `config/packages/studio_todo.yaml`:
 
@@ -105,7 +114,7 @@ studio_todo:
     enabled: true
 ```
 
-### Step 6: (Optional) Build Studio UI Frontend
+### Step 8: (Optional) Build Studio UI Frontend
 
 If you want to use the React-based Studio UI interface:
 

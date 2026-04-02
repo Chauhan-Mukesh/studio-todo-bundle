@@ -11,10 +11,11 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use ChauhanMukesh\StudioTodoBundle\Service\StatisticsService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Stats Controller - REST API for statistics
@@ -35,6 +36,7 @@ class StatsController extends AbstractController
     #[Route('', name: 'overall', methods: ['GET'])]
     public function overall(): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $stats = $this->statsService->getOverallStatistics();
 
         return new JsonResponse([
@@ -49,6 +51,7 @@ class StatsController extends AbstractController
     #[Route('/by-user', name: 'by_user', methods: ['GET'])]
     public function byUser(): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $stats = $this->statsService->getStatisticsByUser();
 
         return new JsonResponse([
@@ -63,6 +66,7 @@ class StatsController extends AbstractController
     #[Route('/by-status', name: 'by_status', methods: ['GET'])]
     public function byStatus(): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $stats = $this->statsService->getStatisticsByStatus();
 
         return new JsonResponse([
@@ -77,6 +81,7 @@ class StatsController extends AbstractController
     #[Route('/by-priority', name: 'by_priority', methods: ['GET'])]
     public function byPriority(): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $stats = $this->statsService->getStatisticsByPriority();
 
         return new JsonResponse([
@@ -91,6 +96,7 @@ class StatsController extends AbstractController
     #[Route('/by-category', name: 'by_category', methods: ['GET'])]
     public function byCategory(): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $stats = $this->statsService->getStatisticsByCategory();
 
         return new JsonResponse([

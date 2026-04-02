@@ -12,6 +12,7 @@ import type {
   TodoUpdateData,
   ApiResponse,
   Statistics,
+  UserStatistics,
   AuditEntry,
 } from '../types';
 
@@ -171,7 +172,7 @@ class TodoApiService {
   /**
    * Fetch statistics by user
    */
-  async fetchStatisticsByUser(): Promise<ApiResponse<any[]>> {
+  async fetchStatisticsByUser(): Promise<ApiResponse<UserStatistics[]>> {
     try {
       const response = await this.api.get('/stats/by-user');
       return response.data;

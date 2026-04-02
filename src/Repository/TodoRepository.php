@@ -25,6 +25,12 @@ use Doctrine\DBAL\Query\QueryBuilder;
  */
 class TodoRepository
 {
+    private const ALLOWED_SORT_COLUMNS = [
+        'created_at', 'updated_at', 'title', 'status', 'priority',
+        'due_date', 'position', 'category', 'assigned_to_user_id',
+    ];
+
+    private const SEARCH_MAX_LENGTH = 200;
     public function __construct(
         private readonly Connection $connection
     ) {
@@ -56,9 +62,15 @@ class TodoRepository
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
     {
         $qb = $this->createFilteredQuery($filters);
+
+        $sortColumn = $filters['sort'] ?? 'created_at';
+        if (!in_array($sortColumn, self::ALLOWED_SORT_COLUMNS, true)) {
+            $sortColumn = 'created_at';
+        }
+
         $qb->setMaxResults($limit)
             ->setFirstResult($offset)
-            ->orderBy($filters['sort'] ?? 'created_at', $filters['order'] ?? 'DESC');
+            ->orderBy($sortColumn, $filters['order'] ?? 'DESC');
 
         $results = $qb->executeQuery()->fetchAllAssociative();
 
@@ -261,6 +273,24 @@ class TodoRepository
     }
 
     /**
+     * Get statistics grouped by category using a SQL GROUP BY query
+     */
+    public function getStatisticsByCategory(): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select(
+            "COALESCE(category, 'uncategorized') as category",
+            'COUNT(*) as count'
+        )
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NULL')
+            ->groupBy('category')
+            ->orderBy('count', 'DESC');
+
+        return $qb->executeQuery()->fetchAllAssociative();
+    }
+
+    /**
      * Get statistics grouped by user
      */
     public function getStatisticsByUser(): array
@@ -345,8 +375,9 @@ class TodoRepository
 
         // Search filter
         if (isset($filters['search'])) {
+            $searchValue = substr((string) $filters['search'], 0, self::SEARCH_MAX_LENGTH);
             $qb->andWhere('(title LIKE :search OR description LIKE :search)')
-                ->setParameter('search', '%' . $filters['search'] . '%');
+                ->setParameter('search', '%' . $searchValue . '%');
         }
 
         // Overdue filter
