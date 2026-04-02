@@ -11,13 +11,14 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use ChauhanMukesh\StudioTodoBundle\Service\TodoManager;
 use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Todo Controller - REST API for todo operations
@@ -39,6 +40,7 @@ class TodoController extends AbstractController
     #[Route('/todos', name: 'list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $filters = [];
 
         // Extract filters from query parameters
@@ -112,6 +114,7 @@ class TodoController extends AbstractController
     #[Route('/todos/{id}', name: 'get', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function get(int $id): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $todo = $this->todoManager->findById($id);
 
         if (!$todo) {
@@ -133,7 +136,16 @@ class TodoController extends AbstractController
     #[Route('/todos', name: 'create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
+
         $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Invalid JSON body',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         if (!isset($data['title']) || empty($data['title'])) {
             return new JsonResponse([
@@ -165,6 +177,8 @@ class TodoController extends AbstractController
     #[Route('/todos/{id}', name: 'update', methods: ['PUT', 'PATCH'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
+
         $todo = $this->todoManager->findById($id);
 
         if (!$todo) {
@@ -176,9 +190,14 @@ class TodoController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
+        if (!is_array($data)) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Invalid JSON body',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
         try {
-            $userId = $this->getUserId();
-            $success = $this->todoManager->update($id, $data, $userId);
 
             if (!$success) {
                 return new JsonResponse([
@@ -207,6 +226,7 @@ class TodoController extends AbstractController
     #[Route('/todos/{id}', name: 'delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
         $todo = $this->todoManager->findById($id);
 
         if (!$todo) {
@@ -245,6 +265,7 @@ class TodoController extends AbstractController
     #[Route('/todos/{id}/complete', name: 'complete', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function complete(int $id): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
         $todo = $this->todoManager->findById($id);
 
         if (!$todo) {
@@ -285,6 +306,7 @@ class TodoController extends AbstractController
     #[Route('/todos/{id}/restore', name: 'restore', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function restore(int $id): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
         $todo = $this->todoManager->findById($id, includeDeleted: true);
 
         if (!$todo) {
@@ -332,7 +354,16 @@ class TodoController extends AbstractController
     #[Route('/todos/bulk-update', name: 'bulk_update', methods: ['POST'])]
     public function bulkUpdate(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
+
         $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Invalid JSON body',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         if (!isset($data['ids']) || !is_array($data['ids'])) {
             return new JsonResponse([
@@ -348,9 +379,11 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
+        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+
         try {
             $userId = $this->getUserId();
-            $count = $this->todoManager->bulkUpdate($data['ids'], $data['data'], $userId);
+            $count = $this->todoManager->bulkUpdate(array_values($ids), $data['data'], $userId);
 
             return new JsonResponse([
                 'success' => true,
@@ -370,7 +403,16 @@ class TodoController extends AbstractController
     #[Route('/todos/bulk-delete', name: 'bulk_delete', methods: ['POST'])]
     public function bulkDelete(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::Manage->value);
+
         $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Invalid JSON body',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         if (!isset($data['ids']) || !is_array($data['ids'])) {
             return new JsonResponse([
@@ -379,9 +421,11 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
+        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+
         try {
             $userId = $this->getUserId();
-            $count = $this->todoManager->bulkDelete($data['ids'], $userId);
+            $count = $this->todoManager->bulkDelete(array_values($ids), $userId);
 
             return new JsonResponse([
                 'success' => true,

@@ -54,7 +54,7 @@ class StudioTodoBundle extends AbstractPimcoreBundle
     public function getInstaller(): Installer
     {
         /** @var Connection $connection */
-        $connection = $this->container->get('doctrine.dbal.default_connection');
+        $connection = $this->container->get(Connection::class);
 
         return new Installer($this, $connection);
     }

@@ -1,0 +1,3 @@
+studio_todo_api:
+    resource: '@StudioTodoBundle/Controller/Api/'
+    type: attribute

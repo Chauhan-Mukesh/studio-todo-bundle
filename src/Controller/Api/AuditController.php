@@ -11,11 +11,12 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use ChauhanMukesh\StudioTodoBundle\Repository\AuditRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Audit Controller - REST API for audit logs
@@ -36,6 +37,7 @@ class AuditController extends AbstractController
     #[Route('/{todoId}', name: 'get_by_todo', methods: ['GET'], requirements: ['todoId' => '\d+'])]
     public function getByTodo(int $todoId, Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $limit = min((int) $request->query->get('limit', 100), 500);
         $page = max((int) $request->query->get('page', 1), 1);
         $offset = ($page - 1) * $limit;
@@ -61,6 +63,7 @@ class AuditController extends AbstractController
     #[Route('', name: 'list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
+        $this->denyAccessUnlessGranted(TodoPermission::View->value);
         $filters = [];
 
         if ($request->query->has('todo_id')) {

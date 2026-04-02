@@ -3,6 +3,8 @@
   "description": "A production-grade todo management bundle for Pimcore 12 with Studio UI integration",
   "type": "pimcore-bundle",
   "license": "MIT",
+  "minimum-stability": "stable",
+  "prefer-stable": true,
   "keywords": ["pimcore", "pimcore-bundle", "todo", "task-management", "studio-ui"],
   "authors": [
     {
@@ -21,6 +23,10 @@
     "symfony/phpunit-bridge": "^6.4 || ^7.0",
     "friendsofphp/php-cs-fixer": "^3.0",
     "phpstan/phpstan": "^1.0"
+  },
+  "suggest": {
+    "symfony/mercure-bundle": "Required for real-time todo updates via Mercure SSE",
+    "pimcore/studio-ui-bundle": "Required for Pimcore Studio UI widget integration"
   },
   "autoload": {
     "psr-4": {

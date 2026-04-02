@@ -107,3 +107,11 @@ export interface AuditEntry {
   user_id: number | null;
   created_at: string;
 }
+
+export interface UserStatistics {
+  assigned_to_user_id: number;
+  total: number;
+  open: number;
+  in_progress: number;
+  completed: number;
+}

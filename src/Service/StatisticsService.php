@@ -36,6 +36,7 @@ class StatisticsService
     public function getOverallStatistics(): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . 'overall';
+        $item = null;
 
         if ($this->isCacheEnabled()) {
             $item = $this->cache->getItem($cacheKey);
@@ -56,7 +57,7 @@ class StatisticsService
         }
 
         // Cache the result
-        if ($this->isCacheEnabled()) {
+        if ($this->isCacheEnabled() && $item !== null) {
             $item->set($stats);
             $item->expiresAfter($this->getCacheTtl());
             $this->cache->save($item);
@@ -71,6 +72,7 @@ class StatisticsService
     public function getStatisticsByUser(): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . 'by_user';
+        $item = null;
 
         if ($this->isCacheEnabled()) {
             $item = $this->cache->getItem($cacheKey);
@@ -82,7 +84,7 @@ class StatisticsService
         $stats = $this->repository->getStatisticsByUser();
 
         // Cache the result
-        if ($this->isCacheEnabled()) {
+        if ($this->isCacheEnabled() && $item !== null) {
             $item->set($stats);
             $item->expiresAfter($this->getCacheTtl());
             $this->cache->save($item);
@@ -113,6 +115,7 @@ class StatisticsService
     public function getStatisticsByPriority(): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . 'by_priority';
+        $item = null;
 
         if ($this->isCacheEnabled()) {
             $item = $this->cache->getItem($cacheKey);
@@ -128,7 +131,7 @@ class StatisticsService
         }
 
         // Cache the result
-        if ($this->isCacheEnabled()) {
+        if ($this->isCacheEnabled() && $item !== null) {
             $item->set($stats);
             $item->expiresAfter($this->getCacheTtl());
             $this->cache->save($item);
@@ -143,6 +146,7 @@ class StatisticsService
     public function getStatisticsByCategory(): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . 'by_category';
+        $item = null;
 
         if ($this->isCacheEnabled()) {
             $item = $this->cache->getItem($cacheKey);
@@ -151,28 +155,10 @@ class StatisticsService
             }
         }
 
-        // This would need a more complex query - simplified version
-        $todos = $this->repository->findAll(['limit' => 10000]);
-        $categoryStats = [];
-
-        foreach ($todos as $todo) {
-            $category = $todo->category ?? 'uncategorized';
-            if (!isset($categoryStats[$category])) {
-                $categoryStats[$category] = 0;
-            }
-            $categoryStats[$category]++;
-        }
-
-        $stats = [];
-        foreach ($categoryStats as $category => $count) {
-            $stats[] = ['category' => $category, 'count' => $count];
-        }
-
-        // Sort by count descending
-        usort($stats, fn($a, $b) => $b['count'] <=> $a['count']);
+        $stats = $this->repository->getStatisticsByCategory();
 
         // Cache the result
-        if ($this->isCacheEnabled()) {
+        if ($this->isCacheEnabled() && $item !== null) {
             $item->set($stats);
             $item->expiresAfter($this->getCacheTtl());
             $this->cache->save($item);

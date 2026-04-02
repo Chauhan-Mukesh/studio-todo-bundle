@@ -4,16 +4,18 @@
  * Main component for displaying and managing todos
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   Button,
   Space,
   Tag,
   Modal,
-  message,
+  Form,
   Input,
   Select,
+  DatePicker,
+  message,
   Dropdown,
   MenuProps,
 } from 'antd';
@@ -27,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import todoApi from '../services/todoApi';
-import type { TodoItem, TodoFilters, TodoStatus, TodoPriority } from '../types';
+import type { TodoItem, TodoFilters, TodoStatus, TodoPriority, TodoUpdateData } from '../types';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -42,9 +44,12 @@ const TodoList: React.FC = () => {
   });
   const [filters, setFilters] = useState<TodoFilters>({});
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [editForm] = Form.useForm();
 
-  // Fetch todos
-  const fetchTodos = async () => {
+  // Fetch todos – stable reference via useCallback
+  const fetchTodos = useCallback(async () => {
     setLoading(true);
     try {
       const response = await todoApi.fetchTodos(
@@ -56,11 +61,12 @@ const TodoList: React.FC = () => {
       if (response.success && response.data) {
         setTodos(response.data);
         if (response.pagination) {
-          setPagination({
-            current: response.pagination.page,
-            pageSize: response.pagination.limit,
-            total: response.pagination.total,
-          });
+          setPagination((prev) => ({
+            ...prev,
+            current: response.pagination!.page,
+            pageSize: response.pagination!.limit,
+            total: response.pagination!.total,
+          }));
         }
       }
     } catch (error) {
@@ -68,11 +74,11 @@ const TodoList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, pagination.current, pagination.pageSize]);
 
   useEffect(() => {
     fetchTodos();
-  }, [pagination.current, pagination.pageSize, filters]);
+  }, [fetchTodos]);
 
   // Handle delete
   const handleDelete = async (id: number) => {
@@ -101,6 +107,57 @@ const TodoList: React.FC = () => {
       fetchTodos();
     } catch (error) {
       message.error('Failed to complete todo');
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selectedRowKeys.length === 0) return;
+
+    Modal.confirm({
+      title: 'Bulk Delete',
+      content: `Are you sure you want to delete ${selectedRowKeys.length} selected todos?`,
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await todoApi.bulkDelete(selectedRowKeys as number[]);
+          message.success(`Successfully deleted ${selectedRowKeys.length} todos`);
+          setSelectedRowKeys([]);
+          fetchTodos();
+        } catch (error) {
+          message.error('Failed to bulk delete todos');
+        }
+      },
+    });
+  };
+
+  // Open edit modal
+  const handleEdit = (todo: TodoItem) => {
+    setEditingTodo(todo);
+    editForm.setFieldsValue({
+      title: todo.title,
+      description: todo.description,
+      status: todo.status,
+      priority: todo.priority,
+      category: todo.category,
+    });
+    setEditModalVisible(true);
+  };
+
+  // Submit edit modal
+  const handleEditSubmit = async () => {
+    if (!editingTodo) return;
+    try {
+      const values = await editForm.validateFields();
+      await todoApi.updateTodo(editingTodo.id, values as Partial<TodoUpdateData>);
+      message.success('Todo updated successfully');
+      setEditModalVisible(false);
+      setEditingTodo(null);
+      editForm.resetFields();
+      fetchTodos();
+    } catch (error) {
+      message.error('Failed to update todo');
     }
   };
 
@@ -147,7 +204,7 @@ const TodoList: React.FC = () => {
       key: 'status',
       width: 120,
       render: (status: TodoStatus) => (
-        <Tag color={getStatusColor(status)}>{status.replace('_', ' ').toUpperCase()}</Tag>
+        <Tag color={getStatusColor(status)}>{status.replace(/_/g, ' ').toUpperCase()}</Tag>
       ),
     },
     {
@@ -175,7 +232,7 @@ const TodoList: React.FC = () => {
         if (!date) return '-';
         const dueDate = new Date(date);
         return (
-          <span style={{ color: record.is_overdue ? 'red' : undefined }}>
+          <span style={{ color: record.is_overdue ? '#ff4d4f' : undefined }}>
             {dueDate.toLocaleDateString()}
           </span>
         );
@@ -212,7 +269,7 @@ const TodoList: React.FC = () => {
         const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
           switch (key) {
             case 'edit':
-              // TODO: Open edit modal
+              handleEdit(record);
               break;
             case 'complete':
               handleComplete(record.id);
@@ -303,9 +360,7 @@ const TodoList: React.FC = () => {
         {selectedRowKeys.length > 0 && (
           <Space>
             <span>Selected {selectedRowKeys.length} items</span>
-            <Button danger onClick={() => {
-              // TODO: Bulk delete
-            }}>
+            <Button danger onClick={handleBulkDelete}>
               Bulk Delete
             </Button>
           </Space>
@@ -320,14 +375,60 @@ const TodoList: React.FC = () => {
           pagination={pagination}
           rowSelection={rowSelection}
           onChange={(newPagination) => {
-            setPagination({
+            setPagination((prev) => ({
+              ...prev,
               current: newPagination.current || 1,
               pageSize: newPagination.pageSize || 20,
-              total: pagination.total,
-            });
+            }));
           }}
         />
       </Space>
+
+      {/* Edit Modal */}
+      <Modal
+        title="Edit Todo"
+        open={editModalVisible}
+        onOk={handleEditSubmit}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingTodo(null);
+          editForm.resetFields();
+        }}
+        okText="Save"
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: 'Title is required' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="Description">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="status" label="Status">
+            <Select>
+              <Option value="open">Open</Option>
+              <Option value="in_progress">In Progress</Option>
+              <Option value="completed">Completed</Option>
+              <Option value="cancelled">Cancelled</Option>
+              <Option value="on_hold">On Hold</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="priority" label="Priority">
+            <Select>
+              <Option value="low">Low</Option>
+              <Option value="medium">Medium</Option>
+              <Option value="high">High</Option>
+              <Option value="critical">Critical</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="category" label="Category">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
