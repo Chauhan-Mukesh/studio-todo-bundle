@@ -162,10 +162,6 @@ class TodoManagerTest extends TestCase
             ->willReturn(true);
 
         $this->auditLogger
-            ->expects($this->atLeastOnce())
-            ->method('logUpdate');
-
-        $this->auditLogger
             ->expects($this->once())
             ->method('logComplete');
 

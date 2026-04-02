@@ -74,18 +74,14 @@ class CleanupCommand extends Command
 
                 if ($autoCleanupDays > 0) {
                     $cutoffDate = new \DateTimeImmutable("-{$autoCleanupDays} days");
-                    $deletedTodos = $this->repository->findAll([
-                        'include_deleted' => true,
-                    ]);
+                    $softDeletedTodos = $this->repository->findSoftDeletedBefore($cutoffDate);
 
                     $hardDeleteCount = 0;
-                    foreach ($deletedTodos as $todo) {
-                        if ($todo->deletedAt && $todo->deletedAt < $cutoffDate) {
-                            if (!$dryRun) {
-                                $this->todoManager->hardDelete($todo->id);
-                            }
-                            $hardDeleteCount++;
+                    foreach ($softDeletedTodos as $todo) {
+                        if (!$dryRun) {
+                            $this->todoManager->hardDelete($todo->id);
                         }
+                        $hardDeleteCount++;
                     }
 
                     if ($hardDeleteCount > 0) {
@@ -99,7 +95,7 @@ class CleanupCommand extends Command
             }
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             $io->error(sprintf('Cleanup failed: %s', $e->getMessage()));
             return Command::FAILURE;
         }

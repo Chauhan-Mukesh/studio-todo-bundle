@@ -113,14 +113,23 @@ readonly class TodoItem
             assignedToUserId: isset($data['assigned_to_user_id']) ? (int) $data['assigned_to_user_id'] : null,
             createdByUserId: isset($data['created_by_user_id']) ? (int) $data['created_by_user_id'] : null,
             updatedByUserId: isset($data['updated_by_user_id']) ? (int) $data['updated_by_user_id'] : null,
-            dueDate: isset($data['due_date']) ? new \DateTimeImmutable($data['due_date']) : null,
-            completedAt: isset($data['completed_at']) ? new \DateTimeImmutable($data['completed_at']) : null,
-            createdAt: new \DateTimeImmutable($data['created_at']),
-            updatedAt: new \DateTimeImmutable($data['updated_at']),
-            deletedAt: isset($data['deleted_at']) ? new \DateTimeImmutable($data['deleted_at']) : null,
+            dueDate: isset($data['due_date']) ? self::parseDateSafely($data['due_date']) : null,
+            completedAt: isset($data['completed_at']) ? self::parseDateSafely($data['completed_at']) : null,
+            createdAt: self::parseDateSafely($data['created_at']) ?? new \DateTimeImmutable(),
+            updatedAt: self::parseDateSafely($data['updated_at']) ?? new \DateTimeImmutable(),
+            deletedAt: isset($data['deleted_at']) ? self::parseDateSafely($data['deleted_at']) : null,
             position: (int) ($data['position'] ?? 0),
             category: $data['category'] ?? null,
             meta: isset($data['meta']) ? json_decode($data['meta'], true) : null,
         );
+    }
+
+    private static function parseDateSafely(string $date): ?\DateTimeImmutable
+    {
+        try {
+            return new \DateTimeImmutable($date);
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

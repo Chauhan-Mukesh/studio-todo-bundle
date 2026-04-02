@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Spin, message } from 'antd';
+import { Card, Row, Col, Statistic, Spin, message, theme } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -19,6 +19,7 @@ import type { Statistics } from '../types';
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
+  const { token } = theme.useToken();
 
   useEffect(() => {
     fetchStatistics();
@@ -64,7 +65,7 @@ const Dashboard: React.FC = () => {
               <Statistic
                 title="Open"
                 value={stats.open}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: token.colorInfo }}
                 prefix={<ClockCircleOutlined />}
               />
             </Card>
@@ -74,7 +75,7 @@ const Dashboard: React.FC = () => {
               <Statistic
                 title="Completed"
                 value={stats.completed}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: token.colorSuccess }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
@@ -84,7 +85,7 @@ const Dashboard: React.FC = () => {
               <Statistic
                 title="Overdue"
                 value={stats.overdue}
-                valueStyle={{ color: '#ff4d4f' }}
+                valueStyle={{ color: token.colorError }}
                 prefix={<ExclamationCircleOutlined />}
               />
             </Card>

@@ -1,0 +1,29 @@
+todo:
+  created: "Todo created successfully"
+  updated: "Todo updated successfully"
+  deleted: "Todo deleted successfully"
+  restored: "Todo restored successfully"
+  completed: "Todo completed successfully"
+  not_found: "Todo not found"
+  title_required: "Title is required"
+  invalid_json: "Invalid JSON body"
+
+command:
+  cleanup:
+    title: "Todo Cleanup"
+    dry_run_note: "Running in DRY RUN mode - no todos will be deleted"
+    looking: "Looking for todos completed more than %days% days ago..."
+    found: "Found %count% todos that would be deleted"
+    deleted: "Successfully deleted %count% old todos"
+    soft_found: "Found %count% soft-deleted todos that would be permanently removed"
+    soft_deleted: "Permanently removed %count% soft-deleted todos older than %days% days"
+    error: "Cleanup failed: %error%"
+  list:
+    no_todos: "No todos found"
+  stats:
+    title: "Todo Statistics"
+
+permission:
+  view: "View todos"
+  manage: "Manage todos"
+  admin: "Admin todos"

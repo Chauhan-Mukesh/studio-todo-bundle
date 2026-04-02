@@ -13,6 +13,7 @@ namespace ChauhanMukesh\StudioTodoBundle\EventListener;
 
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvent;
 use ChauhanMukesh\StudioTodoBundle\Service\AuditLogger;
+use ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -24,7 +25,8 @@ class TodoEventListener
 {
     public function __construct(
         private readonly AuditLogger $auditLogger,
-        private readonly ?LoggerInterface $logger = null
+        private readonly ?LoggerInterface $logger = null,
+        private readonly ?MercurePublisher $mercurePublisher = null
     ) {
     }
 
@@ -42,8 +44,7 @@ class TodoEventListener
             'priority' => $todo->priority->value,
         ]);
 
-        // Additional custom logic can be added here
-        // For example: sending notifications, updating related elements, etc.
+        $this->mercurePublisher?->publish('created', $todo);
     }
 
     /**
@@ -58,18 +59,7 @@ class TodoEventListener
             'title' => $todo->title,
         ]);
 
-        // Check for specific field changes and trigger actions
-        if ($event->hasFieldChanged('status')) {
-            $this->onStatusChanged($event);
-        }
-
-        if ($event->hasFieldChanged('assigned_to_user_id')) {
-            $this->onAssigned($event);
-        }
-
-        if ($event->hasFieldChanged('priority')) {
-            $this->onPriorityChanged($event);
-        }
+        $this->mercurePublisher?->publish('updated', $todo, $event->getPreviousTodo());
     }
 
     /**
@@ -84,7 +74,7 @@ class TodoEventListener
             'title' => $todo->title,
         ]);
 
-        // Additional cleanup or notification logic
+        $this->mercurePublisher?->publish('deleted', $todo);
     }
 
     /**
@@ -100,7 +90,7 @@ class TodoEventListener
             'completed_at' => $todo->completedAt?->format(\DateTimeInterface::ATOM),
         ]);
 
-        // Send completion notifications, trigger workflows, etc.
+        $this->mercurePublisher?->publish('completed', $todo, $event->getPreviousTodo());
     }
 
     /**
@@ -114,56 +104,49 @@ class TodoEventListener
             'todo_id' => $todo->id,
             'title' => $todo->title,
         ]);
+
+        $this->mercurePublisher?->publish('restored', $todo);
     }
 
     /**
-     * Handle status change
+     * Handle todo assigned event
      */
-    private function onStatusChanged(TodoEvent $event): void
+    public function onTodoAssigned(TodoEvent $event): void
     {
-        $oldStatus = $event->getOldValue('status');
-        $newStatus = $event->getNewValue('status');
-
-        $this->logger?->info('Todo status changed', [
-            'todo_id' => $event->getTodo()->id,
-            'old_status' => $oldStatus,
-            'new_status' => $newStatus,
-        ]);
-
-        // Send status change notifications
-    }
-
-    /**
-     * Handle assignment change
-     */
-    private function onAssigned(TodoEvent $event): void
-    {
-        $oldUserId = $event->getOldValue('assigned_to_user_id');
-        $newUserId = $event->getNewValue('assigned_to_user_id');
-
+        $todo = $event->getTodo();
         $this->logger?->info('Todo assigned', [
-            'todo_id' => $event->getTodo()->id,
-            'old_user_id' => $oldUserId,
-            'new_user_id' => $newUserId,
+            'todo_id' => $todo->id,
+            'old_user_id' => $event->getOldValue('assigned_to_user_id'),
+            'new_user_id' => $event->getNewValue('assigned_to_user_id'),
         ]);
-
-        // Send assignment notifications to the new user
+        $this->mercurePublisher?->publish('assigned', $todo, $event->getPreviousTodo());
     }
 
     /**
-     * Handle priority change
+     * Handle todo priority changed event
      */
-    private function onPriorityChanged(TodoEvent $event): void
+    public function onTodoPriorityChanged(TodoEvent $event): void
     {
-        $oldPriority = $event->getOldValue('priority');
-        $newPriority = $event->getNewValue('priority');
-
+        $todo = $event->getTodo();
         $this->logger?->info('Todo priority changed', [
-            'todo_id' => $event->getTodo()->id,
-            'old_priority' => $oldPriority,
-            'new_priority' => $newPriority,
+            'todo_id' => $todo->id,
+            'old_priority' => $event->getOldValue('priority'),
+            'new_priority' => $event->getNewValue('priority'),
         ]);
+        $this->mercurePublisher?->publish('priority_changed', $todo, $event->getPreviousTodo());
+    }
 
-        // Send priority change notifications if needed
+    /**
+     * Handle todo status changed event
+     */
+    public function onTodoStatusChanged(TodoEvent $event): void
+    {
+        $todo = $event->getTodo();
+        $this->logger?->info('Todo status changed', [
+            'todo_id' => $todo->id,
+            'old_status' => $event->getOldValue('status'),
+            'new_status' => $event->getNewValue('status'),
+        ]);
+        $this->mercurePublisher?->publish('status_changed', $todo, $event->getPreviousTodo());
     }
 }

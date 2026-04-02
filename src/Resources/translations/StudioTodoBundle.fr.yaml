@@ -1,0 +1,29 @@
+todo:
+  created: "Todo créé avec succès"
+  updated: "Todo mis à jour avec succès"
+  deleted: "Todo supprimé avec succès"
+  restored: "Todo restauré avec succès"
+  completed: "Todo terminé avec succès"
+  not_found: "Todo introuvable"
+  title_required: "Le titre est requis"
+  invalid_json: "Corps JSON invalide"
+
+command:
+  cleanup:
+    title: "Nettoyage des Todos"
+    dry_run_note: "Mode SIMULATION - aucun todo ne sera supprimé"
+    looking: "Recherche de todos terminés depuis plus de %days% jours..."
+    found: "Trouvé %count% todos qui seraient supprimés"
+    deleted: "%count% anciens todos supprimés avec succès"
+    soft_found: "Trouvé %count% todos supprimés qui seraient définitivement retirés"
+    soft_deleted: "%count% todos supprimés définitivement retirés (plus de %days% jours)"
+    error: "Échec du nettoyage: %error%"
+  list:
+    no_todos: "Aucun todo trouvé"
+  stats:
+    title: "Statistiques des Todos"
+
+permission:
+  view: "Voir les todos"
+  manage: "Gérer les todos"
+  admin: "Administrer les todos"

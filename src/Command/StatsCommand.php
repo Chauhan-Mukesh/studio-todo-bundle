@@ -89,7 +89,7 @@ class StatsCommand extends Command
             }
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             $io->error(sprintf('Failed to fetch statistics: %s', $e->getMessage()));
             return Command::FAILURE;
         }

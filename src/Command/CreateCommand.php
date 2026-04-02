@@ -101,7 +101,7 @@ class CreateCommand extends Command
             );
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             $io->error(sprintf('Failed to create todo: %s', $e->getMessage()));
             return Command::FAILURE;
         }

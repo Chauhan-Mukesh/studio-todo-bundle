@@ -36,29 +36,29 @@ class TodoOperationHandler
     public function __invoke(TodoOperationMessage $message): void
     {
         $this->logger?->info('Processing async todo operation', [
-            'operation' => $message->getOperation(),
-            'todo_id' => $message->getTodoId(),
+            'operation' => $message->operation,
+            'todo_id' => $message->todoId,
         ]);
 
         try {
-            match ($message->getOperation()) {
+            match ($message->operation) {
                 'created' => $this->handleCreated($message),
                 'updated' => $this->handleUpdated($message),
                 'deleted' => $this->handleDeleted($message),
                 'restored' => $this->handleRestored($message),
                 default => $this->logger?->warning('Unknown operation', [
-                    'operation' => $message->getOperation(),
+                    'operation' => $message->operation,
                 ]),
             };
 
             $this->logger?->info('Async todo operation completed', [
-                'operation' => $message->getOperation(),
-                'todo_id' => $message->getTodoId(),
+                'operation' => $message->operation,
+                'todo_id' => $message->todoId,
             ]);
         } catch (\Throwable $e) {
             $this->logger?->error('Error processing async todo operation', [
-                'operation' => $message->getOperation(),
-                'todo_id' => $message->getTodoId(),
+                'operation' => $message->operation,
+                'todo_id' => $message->todoId,
                 'error' => $e->getMessage(),
             ]);
 
@@ -71,17 +71,12 @@ class TodoOperationHandler
      */
     private function handleCreated(TodoOperationMessage $message): void
     {
-        // Perform async actions after todo creation
-        // For example: send notifications, update related elements, etc.
-
-        $todo = $this->todoManager->findById($message->getTodoId());
+        $todo = $this->todoManager->findById($message->todoId);
         if (!$todo) {
             return;
         }
 
-        // Send notification to assigned user
         if ($todo->assignedToUserId) {
-            // TODO: Implement notification logic
             $this->logger?->info('Would send creation notification', [
                 'todo_id' => $todo->id,
                 'user_id' => $todo->assignedToUserId,
@@ -94,24 +89,19 @@ class TodoOperationHandler
      */
     private function handleUpdated(TodoOperationMessage $message): void
     {
-        // Perform async actions after todo update
-        $todo = $this->todoManager->findById($message->getTodoId());
+        $todo = $this->todoManager->findById($message->todoId);
         if (!$todo) {
             return;
         }
 
-        // Check if user was assigned
-        if (isset($message->getData()['assigned_to_user_id'])) {
-            // TODO: Send assignment notification
+        if (isset($message->data['assigned_to_user_id'])) {
             $this->logger?->info('Would send assignment notification', [
                 'todo_id' => $todo->id,
                 'user_id' => $todo->assignedToUserId,
             ]);
         }
 
-        // Check if status changed
-        if (isset($message->getData()['status'])) {
-            // TODO: Trigger workflow transitions, send notifications
+        if (isset($message->data['status'])) {
             $this->logger?->info('Status changed, would trigger workflows', [
                 'todo_id' => $todo->id,
                 'new_status' => $todo->status->value,
@@ -124,14 +114,9 @@ class TodoOperationHandler
      */
     private function handleDeleted(TodoOperationMessage $message): void
     {
-        // Perform async actions after todo deletion
-        // For example: cleanup related data, send notifications, etc.
-
         $this->logger?->info('Todo deleted, performing cleanup', [
-            'todo_id' => $message->getTodoId(),
+            'todo_id' => $message->todoId,
         ]);
-
-        // TODO: Implement cleanup logic
     }
 
     /**
@@ -139,13 +124,11 @@ class TodoOperationHandler
      */
     private function handleRestored(TodoOperationMessage $message): void
     {
-        // Perform async actions after todo restoration
-        $todo = $this->todoManager->findById($message->getTodoId());
+        $todo = $this->todoManager->findById($message->todoId);
         if (!$todo) {
             return;
         }
 
-        // TODO: Send restoration notification
         $this->logger?->info('Todo restored', [
             'todo_id' => $todo->id,
         ]);

@@ -19,18 +19,18 @@ A production-grade, feature-rich todo/task management bundle for Pimcore 11, 12,
 - ✅ **Async Processing**: Message queue integration for performance
 - ✅ **Security**: Three-tier permission system (View, Manage, Admin)
 - ✅ **Flexible Metadata**: JSON meta field for custom attributes
-- ⬜ **Real-time Updates**: Live synchronization via Mercure SSE (requires `symfony/mercure-bundle`, not yet implemented)
-- ⬜ **Multi-language**: i18n support planned (not yet implemented)
+- ✅ **Real-time Updates**: Live synchronization via Mercure SSE (`MercurePublisher` + `useMercureSSE` hook; requires `symfony/mercure-bundle`)
+- ✅ **Multi-language**: i18n support for EN, DE, FR (YAML translation files in `src/Resources/translations/`)
 - ⬜ **Workflow Integration**: Pimcore workflow state management (configuration exists, implementation pending)
 
 ### Technical Excellence
 - ✅ **Pimcore 11 & 12 Compatible**: Works with both major versions
 - ✅ **Symfony 6 & 7 Compatible**: Modern Symfony best practices
 - ✅ **PHP 8.2+**: Leverages modern PHP features (enums, readonly properties, typed constants)
-- ✅ **React 18 + TypeScript**: Type-safe Studio UI integration
-- ✅ **RESTful API**: Clean, well-documented API endpoints
+- ✅ **React 18 + TypeScript**: Type-safe Studio UI integration with live updates
+- ✅ **RESTful API**: Clean, well-documented API endpoints (including hard-delete endpoint)
 - ✅ **CLI Commands**: Powerful command-line tools
-- ⬜ **Comprehensive Tests**: Integration test coverage in progress
+- ✅ **Comprehensive Tests**: Unit and integration test coverage (PHPUnit + Vitest)
 - ✅ **Full Documentation**: Inline docs, README, and API documentation
 
 ## 📋 Requirements
@@ -259,6 +259,7 @@ The bundle exposes a comprehensive REST API at `/pimcore-studio/api/studio-todo/
 - `DELETE /pimcore-studio/api/studio-todo/todos/{id}` - Soft delete todo
 - `POST /pimcore-studio/api/studio-todo/todos/{id}/complete` - Mark as completed
 - `POST /pimcore-studio/api/studio-todo/todos/{id}/restore` - Restore deleted todo
+- `DELETE /pimcore-studio/api/studio-todo/todos/{id}/hard-delete` - Permanently delete (Admin only)
 
 #### Filtering & Search
 
@@ -423,9 +424,45 @@ To modify:
 2. Rebuild: `cd assets/studio && npm run build`
 3. Clear Pimcore cache: `bin/console cache:clear`
 
+## 🔄 Real-time Updates (Mercure SSE)
+
+Live synchronization uses [Mercure](https://mercure.rocks/) Server-Sent Events.
+
+### Requirements
+
+```bash
+composer require symfony/mercure-bundle
+```
+
+### Configuration
+
+```yaml
+# config/packages/mercure.yaml
+mercure:
+  hubs:
+    default:
+      url: https://your-mercure-hub/.well-known/mercure
+      jwt:
+        secret: '%env(MERCURE_JWT_SECRET)%'
+```
+
+### How It Works
+
+- `MercurePublisher` service publishes updates to topics `studio-todo/todos` and `studio-todo/todo/{id}`
+- The frontend `useMercureSSE` hook subscribes and automatically refreshes the todo list
+- The service is optional: if `mercure.hub.default` is not registered, it silently no-ops
+
+### Frontend SSE URL
+
+The hub URL can be configured by setting `window.MERCURE_HUB_URL` before the bundle JS loads:
+
+```html
+<script>window.MERCURE_HUB_URL = '/.well-known/mercure';</script>
+```
+
 ## 🧪 Testing
 
-### Running Tests
+### Running PHP Tests
 
 ```bash
 # Run all tests
@@ -454,6 +491,24 @@ tests/
 └── Integration/
     └── Api/
         └── TodoControllerTest.php
+```
+
+### Running Frontend Tests
+
+```bash
+cd assets/studio
+
+# Install dependencies
+npm install
+
+# Run tests with Vitest
+npm test
+
+# Watch mode
+npm run test:watch
+
+# With coverage
+npm run test:coverage
 ```
 
 ## 🔧 Configuration Reference
@@ -638,24 +693,37 @@ studio_todo:
 
 ### Supported Languages
 
-- English (en)
-- German (de)
+- English (`en`)
+- German (`de`)
+- French (`fr`)
 
-### Adding New Translations
+### PHP Backend Translations
 
-1. Create translation file: `assets/studio/js/src/i18n/fr.ts` (for French)
-2. Add translations following the existing structure
-3. Register in `assets/studio/js/src/i18n/index.ts`
-4. Rebuild frontend
-
-### PHP-side Translations
-
-Add translation files in `src/Resources/translations/`:
+Translation files are located in `src/Resources/translations/`:
 
 ```
 src/Resources/translations/
-├── messages.en.yaml
-└── messages.de.yaml
+├── StudioTodoBundle.en.yaml  ← English (default)
+├── StudioTodoBundle.de.yaml  ← German
+└── StudioTodoBundle.fr.yaml  ← French
+```
+
+### Adding New Translations
+
+1. Copy an existing file: `cp src/Resources/translations/StudioTodoBundle.en.yaml src/Resources/translations/StudioTodoBundle.es.yaml`
+2. Translate all values
+3. Clear Pimcore cache: `bin/console cache:clear`
+
+### Frontend i18n
+
+For frontend localization, Ant Design's `ConfigProvider` locale prop can be set:
+
+```tsx
+import esES from 'antd/locale/es_ES';
+
+<ConfigProvider locale={esES}>
+  <App>...</App>
+</ConfigProvider>
 ```
 
 ## 🤝 Contributing
