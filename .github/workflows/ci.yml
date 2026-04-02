@@ -50,9 +50,6 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       # ---- PHP Coding Standards (PSR-12) ----------------------
-      - name: Install PHP CS Fixer
-        run: composer require --dev friendsofphp/php-cs-fixer --no-interaction --quiet
-
       - name: Check PHP coding standards (PSR-12)
         run: |
           vendor/bin/php-cs-fixer fix \
@@ -64,9 +61,6 @@ jobs:
         continue-on-error: false
 
       # ---- PHPStan static analysis ----------------------------
-      - name: Install PHPStan
-        run: composer require --dev phpstan/phpstan --no-interaction --quiet
-
       - name: Run PHPStan (level 6)
         run: |
           vendor/bin/phpstan analyse \
@@ -245,7 +239,7 @@ jobs:
       # ---- Warn if sort filter is not whitelisted (heuristic) -
       - name: Warn on unwhitelisted sort parameter usage
         run: |
-          SORT=$(grep -n "orderBy.*\\\$filters\[.sort.\]" src/ -r \
+          SORT=$(grep -rn "\$filters\[['\"']sort['\"']\]" src/ \
             --include="*.php" || true)
           if [ -n "$SORT" ]; then
             echo "::warning::Potentially unsafe sort column (see ISSUE-004):"
@@ -257,8 +251,7 @@ jobs:
         run: |
           if [ ! -f "src/Resources/config/routes.yaml" ] && \
              [ ! -f "config/routes/studio_todo.yaml" ]; then
-            echo "::error::No routing configuration file found." \
-              "API endpoints will be unreachable (see ISSUE-001)."
+            echo "::error::No routing configuration file found. API endpoints will be unreachable (see ISSUE-001)."
             exit 1
           fi
 

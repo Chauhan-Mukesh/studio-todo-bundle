@@ -5,7 +5,7 @@
   Reviewer   : GitHub Copilot (automated + manual analysis)
 ================================================================================
 
-This report covers the main branch and categorises every issue found.
+This report covers the main branch and categorizes every issue found.
 Severity legend: [CRITICAL] [HIGH] [MEDIUM] [LOW]
 
 
