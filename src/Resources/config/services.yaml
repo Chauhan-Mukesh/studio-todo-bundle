@@ -6,7 +6,7 @@ services:
 
     ChauhanMukesh\StudioTodoBundle\:
         resource: '../../src/*'
-        exclude: '../../src/{DependencyInjection,Entity,Model,Enum,Resources,StudioTodoBundle.php}'
+        exclude: '../../src/{DependencyInjection,Entity,Model,Enum,Resources,Installer,StudioTodoBundle.php}'
 
     # Repository Services – explicit to wire the DBAL connection
     ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository:

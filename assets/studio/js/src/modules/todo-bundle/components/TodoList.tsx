@@ -28,6 +28,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { theme } from 'antd';
 import todoApi from '../services/todoApi';
 import type { TodoItem, TodoFilters, TodoStatus, TodoPriority, TodoUpdateData, TodoCreateData } from '../types';
 import { useMercureSSE } from '../hooks/useMercureSSE';
@@ -40,6 +41,7 @@ const mercureHubUrl = (window as Window & { MERCURE_HUB_URL?: string }).MERCURE_
 const TodoList: React.FC = () => {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const { token } = theme.useToken();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -259,7 +261,7 @@ const TodoList: React.FC = () => {
         if (!date) return '-';
         const dueDate = new Date(date);
         return (
-          <span style={{ color: record.is_overdue ? '#ff4d4f' : undefined }}>
+          <span style={{ color: record.is_overdue ? token.colorError : undefined }}>
             {dueDate.toLocaleDateString()}
           </span>
         );

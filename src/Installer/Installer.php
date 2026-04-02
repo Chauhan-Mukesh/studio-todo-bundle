@@ -35,7 +35,7 @@ class Installer extends SettingsStoreAwareInstaller
 
     public function __construct(
         BundleInterface $bundle,
-        protected readonly Connection $db,
+        protected readonly Connection $db
     ) {
         parent::__construct($bundle);
     }

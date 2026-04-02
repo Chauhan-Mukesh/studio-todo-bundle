@@ -16,6 +16,26 @@ import type {
   AuditEntry,
 } from '../types';
 
+/**
+ * Get the Pimcore authentication token from the document meta tag or cookie.
+ * Pimcore Studio UI injects the token as a meta tag or sets a cookie.
+ */
+function getPimcoreAuthToken(): string | null {
+  // Try meta tag first (Pimcore Studio UI style)
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="pimcore-simple-auth-token"]');
+  if (meta?.content) {
+    return meta.content;
+  }
+
+  // Try window-level variable injected by Pimcore
+  const win = window as Window & { pimcoreAuthToken?: string };
+  if (win.pimcoreAuthToken) {
+    return win.pimcoreAuthToken;
+  }
+
+  return null;
+}
+
 class TodoApiService {
   private api: AxiosInstance;
   private baseUrl = '/pimcore-studio/api/studio-todo';
@@ -26,6 +46,16 @@ class TodoApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      withCredentials: true,
+    });
+
+    // Attach Pimcore auth token to every request if available
+    this.api.interceptors.request.use((config) => {
+      const token = getPimcoreAuthToken();
+      if (token) {
+        config.headers['X-Pimcore-Simple-Auth-Token'] = token;
+      }
+      return config;
     });
   }
 

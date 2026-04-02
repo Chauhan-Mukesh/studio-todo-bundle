@@ -163,7 +163,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'data' => $todo->toArray(),
             ], Response::HTTP_CREATED);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -214,7 +214,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'data' => $updatedTodo->toArray(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -253,7 +253,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'message' => 'Todo deleted successfully',
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -294,7 +294,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'data' => $completedTodo->toArray(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -342,7 +342,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'data' => $restoredTodo->toArray(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -391,7 +391,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'updated' => $count,
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -433,7 +433,7 @@ class TodoController extends AbstractController
                 'success' => true,
                 'deleted' => $count,
             ]);
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),

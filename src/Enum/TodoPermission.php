@@ -5,6 +5,7 @@
  *
  * @license MIT
  * @author Mukesh Chauhan
+ * @package ChauhanMukesh\StudioTodoBundle\Enum
  */
 
 declare(strict_types=1);
@@ -25,5 +26,6 @@ enum TodoPermission: string
     case Manage = 'studio_todo_manage';
     case Admin = 'studio_todo_admin';
 
+    /** @var string Permission category displayed in Pimcore user management */
     public const CATEGORY = 'Studio Todo';
 }

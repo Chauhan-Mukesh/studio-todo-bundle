@@ -5,8 +5,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import Dashboard from './modules/todo-bundle/components/Dashboard';
-import { ConfigProvider } from 'antd';
-import 'antd/dist/reset.css';
+import { ConfigProvider, App } from 'antd';
 
 // Initialize the app
 const initApp = () => {
@@ -17,7 +16,9 @@ const initApp = () => {
     root.render(
       <React.StrictMode>
         <ConfigProvider>
-          <Dashboard />
+          <App>
+            <Dashboard />
+          </App>
         </ConfigProvider>
       </React.StrictMode>
     );

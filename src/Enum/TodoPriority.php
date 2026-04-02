@@ -5,6 +5,7 @@
  *
  * @license MIT
  * @author Mukesh Chauhan
+ * @package ChauhanMukesh\StudioTodoBundle\Enum
  */
 
 declare(strict_types=1);

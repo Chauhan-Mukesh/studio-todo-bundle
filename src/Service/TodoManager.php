@@ -66,8 +66,7 @@ class TodoManager
         if ($this->isAsyncEnabled()) {
             $this->messageBus->dispatch(new TodoOperationMessage(
                 operation: 'created',
-                todoId: $todoId,
-                data: $data
+                todoId: $todoId
             ));
         }
 
@@ -118,8 +117,7 @@ class TodoManager
             if ($this->isAsyncEnabled()) {
                 $this->messageBus->dispatch(new TodoOperationMessage(
                     operation: 'updated',
-                    todoId: $id,
-                    data: $data
+                    todoId: $id
                 ));
             }
         }

@@ -38,6 +38,8 @@ class TodoRepository
 
     /**
      * Find todo by ID
+     *
+     * @return TodoItem|null The todo item or null if not found
      */
     public function findById(int $id, bool $includeDeleted = false): ?TodoItem
     {
@@ -58,6 +60,8 @@ class TodoRepository
 
     /**
      * Find all todos with optional filtering
+     *
+     * @return TodoItem[]
      */
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
     {
@@ -123,6 +127,9 @@ class TodoRepository
 
     /**
      * Create a new todo item
+     *
+     * @return int The ID of the newly created todo
+     * @throws \Doctrine\DBAL\Exception On database error
      */
     public function create(array $data): int
     {
@@ -157,14 +164,21 @@ class TodoRepository
 
     /**
      * Update an existing todo item
+     *
+     * @return bool True if update succeeded, false if nothing was updated
+     * @throws \Doctrine\DBAL\Exception On database error
      */
     public function update(int $id, array $data): bool
     {
         $updateData = [];
 
-        foreach (['title', 'description', 'status', 'workflow_state', 'priority',
-                  'related_element_id', 'related_element_type', 'related_class',
-                  'assigned_to_user_id', 'updated_by_user_id', 'position', 'category'] as $field) {
+        $allowedFields = [
+            'title', 'description', 'status', 'workflow_state', 'priority',
+            'related_element_id', 'related_element_type', 'related_class',
+            'assigned_to_user_id', 'updated_by_user_id', 'position', 'category',
+        ];
+
+        foreach ($allowedFields as $field) {
             if (array_key_exists($field, $data)) {
                 $updateData[$field] = $data[$field];
             }
@@ -279,6 +293,8 @@ class TodoRepository
 
     /**
      * Find completed todos older than the given cutoff date
+     *
+     * @return TodoItem[]
      */
     public function findCompletedBefore(\DateTimeImmutable $cutoff): array
     {
@@ -296,6 +312,8 @@ class TodoRepository
 
     /**
      * Find soft-deleted todos whose deletedAt is before the given cutoff date
+     *
+     * @return TodoItem[]
      */
     public function findSoftDeletedBefore(\DateTimeImmutable $cutoff): array
     {
@@ -311,6 +329,9 @@ class TodoRepository
 
     /**
      * Batch soft-delete todos by IDs
+     *
+     * @param int[] $ids
+     * @return int Number of records affected
      */
     public function batchSoftDelete(array $ids): int
     {
@@ -331,6 +352,9 @@ class TodoRepository
 
     /**
      * Batch update a field for todos by IDs
+     *
+     * @param int[] $ids
+     * @return int Number of records affected
      */
     public function batchUpdate(array $ids, array $data): int
     {

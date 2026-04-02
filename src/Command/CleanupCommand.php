@@ -95,7 +95,7 @@ class CleanupCommand extends Command
             }
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             $io->error(sprintf('Cleanup failed: %s', $e->getMessage()));
             return Command::FAILURE;
         }
