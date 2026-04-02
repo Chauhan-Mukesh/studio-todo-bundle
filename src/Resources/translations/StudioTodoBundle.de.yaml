@@ -1,0 +1,29 @@
+todo:
+  created: "Todo erfolgreich erstellt"
+  updated: "Todo erfolgreich aktualisiert"
+  deleted: "Todo erfolgreich gelöscht"
+  restored: "Todo erfolgreich wiederhergestellt"
+  completed: "Todo erfolgreich abgeschlossen"
+  not_found: "Todo nicht gefunden"
+  title_required: "Titel ist erforderlich"
+  invalid_json: "Ungültiger JSON-Body"
+
+command:
+  cleanup:
+    title: "Todo-Bereinigung"
+    dry_run_note: "Läuft im TESTMODUS - keine Todos werden gelöscht"
+    looking: "Suche nach Todos, die vor mehr als %days% Tagen abgeschlossen wurden..."
+    found: "%count% Todos würden gelöscht"
+    deleted: "%count% alte Todos erfolgreich gelöscht"
+    soft_found: "%count% weich-gelöschte Todos würden dauerhaft entfernt"
+    soft_deleted: "%count% weich-gelöschte Todos älter als %days% Tage dauerhaft entfernt"
+    error: "Bereinigung fehlgeschlagen: %error%"
+  list:
+    no_todos: "Keine Todos gefunden"
+  stats:
+    title: "Todo-Statistiken"
+
+permission:
+  view: "Todos anzeigen"
+  manage: "Todos verwalten"
+  admin: "Todos administrieren"

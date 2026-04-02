@@ -198,6 +198,8 @@ class TodoController extends AbstractController
         }
 
         try {
+            $userId = $this->getUserId();
+            $success = $this->todoManager->update($id, $data, $userId);
 
             if (!$success) {
                 return new JsonResponse([
@@ -432,6 +434,45 @@ class TodoController extends AbstractController
                 'deleted' => $count,
             ]);
         } catch (\Exception $e) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Hard delete a todo (permanent, Admin only)
+     */
+    #[Route('/todos/{id}/hard-delete', name: 'hard_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function hardDelete(int $id): JsonResponse
+    {
+        $this->denyAccessUnlessGranted(TodoPermission::Admin->value);
+        $todo = $this->todoManager->findById($id, includeDeleted: true);
+
+        if (!$todo) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Todo not found',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $userId = $this->getUserId();
+            $success = $this->todoManager->hardDelete($id, $userId);
+
+            if (!$success) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Failed to permanently delete todo',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Todo permanently deleted',
+            ]);
+        } catch (\RuntimeException $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => $e->getMessage(),

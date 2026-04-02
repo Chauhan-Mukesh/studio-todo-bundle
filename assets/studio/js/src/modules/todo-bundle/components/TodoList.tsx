@@ -29,10 +29,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import todoApi from '../services/todoApi';
-import type { TodoItem, TodoFilters, TodoStatus, TodoPriority, TodoUpdateData } from '../types';
+import type { TodoItem, TodoFilters, TodoStatus, TodoPriority, TodoUpdateData, TodoCreateData } from '../types';
+import { useMercureSSE } from '../hooks/useMercureSSE';
 
 const { Search } = Input;
 const { Option } = Select;
+
+const mercureHubUrl = (window as Window & { MERCURE_HUB_URL?: string }).MERCURE_HUB_URL ?? '/.well-known/mercure';
 
 const TodoList: React.FC = () => {
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -47,6 +50,8 @@ const TodoList: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [editForm] = Form.useForm();
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createForm] = Form.useForm();
 
   // Fetch todos – stable reference via useCallback
   const fetchTodos = useCallback(async () => {
@@ -79,6 +84,14 @@ const TodoList: React.FC = () => {
   useEffect(() => {
     fetchTodos();
   }, [fetchTodos]);
+
+  useMercureSSE({
+    hubUrl: mercureHubUrl,
+    topic: 'studio-todo/todos',
+    onMessage: () => {
+      fetchTodos();
+    },
+  });
 
   // Handle delete
   const handleDelete = async (id: number) => {
@@ -158,6 +171,20 @@ const TodoList: React.FC = () => {
       fetchTodos();
     } catch (error) {
       message.error('Failed to update todo');
+    }
+  };
+
+  // Submit create modal
+  const handleCreateSubmit = async () => {
+    try {
+      const values = await createForm.validateFields();
+      await todoApi.createTodo(values as TodoCreateData);
+      message.success('Todo created successfully');
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      fetchTodos();
+    } catch (error) {
+      message.error('Failed to create todo');
     }
   };
 
@@ -317,7 +344,7 @@ const TodoList: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={fetchTodos}>
               Refresh
             </Button>
-            <Button type="primary" icon={<PlusOutlined />}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
               Create Todo
             </Button>
           </Space>
@@ -417,6 +444,48 @@ const TodoList: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="priority" label="Priority">
+            <Select>
+              <Option value="low">Low</Option>
+              <Option value="medium">Medium</Option>
+              <Option value="high">High</Option>
+              <Option value="critical">Critical</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="category" label="Category">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Create Modal */}
+      <Modal
+        title="Create Todo"
+        open={createModalVisible}
+        onOk={handleCreateSubmit}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          createForm.resetFields();
+        }}
+        okText="Create"
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: 'Title is required' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="Description">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="status" label="Status" initialValue="open">
+            <Select>
+              <Option value="open">Open</Option>
+              <Option value="in_progress">In Progress</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="priority" label="Priority" initialValue="medium">
             <Select>
               <Option value="low">Low</Option>
               <Option value="medium">Medium</Option>

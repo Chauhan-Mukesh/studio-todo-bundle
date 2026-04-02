@@ -4,21 +4,18 @@ services:
         autoconfigure: true
         public: false
 
-    # Make services in src/ available for dependency injection
     ChauhanMukesh\StudioTodoBundle\:
-        resource: '../../*'
-        exclude: '../../{DependencyInjection,Entity,Model,Enum,Resources,StudioTodoBundle.php}'
+        resource: '../../src/*'
+        exclude: '../../src/{DependencyInjection,Entity,Model,Enum,Resources,StudioTodoBundle.php}'
 
-    # Repository Services
+    # Repository Services – explicit to wire the DBAL connection
     ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository:
         arguments:
             $connection: '@doctrine.dbal.default_connection'
-        public: true
 
     ChauhanMukesh\StudioTodoBundle\Repository\AuditRepository:
         arguments:
             $connection: '@doctrine.dbal.default_connection'
-        public: true
 
     # Core Services
     ChauhanMukesh\StudioTodoBundle\Service\TodoManager:
@@ -28,20 +25,21 @@ services:
             $eventDispatcher: '@event_dispatcher'
             $messageBus: '@messenger.default_bus'
             $config: '%studio_todo.config%'
-        public: true
 
     ChauhanMukesh\StudioTodoBundle\Service\AuditLogger:
         arguments:
             $repository: '@ChauhanMukesh\StudioTodoBundle\Repository\AuditRepository'
             $config: '%studio_todo.audit%'
-        public: true
 
     ChauhanMukesh\StudioTodoBundle\Service\StatisticsService:
         arguments:
             $repository: '@ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository'
             $cache: '@cache.app'
             $config: '%studio_todo.cache%'
-        public: true
+
+    ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher:
+        arguments:
+            $hub: '@?mercure.hub.default'
 
     # Controllers
     ChauhanMukesh\StudioTodoBundle\Controller\Api\TodoController:
@@ -90,12 +88,16 @@ services:
     ChauhanMukesh\StudioTodoBundle\EventListener\TodoEventListener:
         arguments:
             $auditLogger: '@ChauhanMukesh\StudioTodoBundle\Service\AuditLogger'
+            $mercurePublisher: '@?ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher'
         tags:
             - { name: kernel.event_listener, event: studio_todo.created, method: onTodoCreated }
             - { name: kernel.event_listener, event: studio_todo.updated, method: onTodoUpdated }
             - { name: kernel.event_listener, event: studio_todo.deleted, method: onTodoDeleted }
             - { name: kernel.event_listener, event: studio_todo.completed, method: onTodoCompleted }
             - { name: kernel.event_listener, event: studio_todo.restored, method: onTodoRestored }
+            - { name: kernel.event_listener, event: studio_todo.assigned, method: onTodoAssigned }
+            - { name: kernel.event_listener, event: studio_todo.priority_changed, method: onTodoPriorityChanged }
+            - { name: kernel.event_listener, event: studio_todo.status_changed, method: onTodoStatusChanged }
 
     # Message Handlers
     ChauhanMukesh\StudioTodoBundle\MessageHandler\TodoOperationHandler:

@@ -27,6 +27,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 class TodoManager
 {
+    private readonly bool $asyncEnabled;
+
     public function __construct(
         private readonly TodoRepository $repository,
         private readonly AuditLogger $auditLogger,
@@ -34,6 +36,7 @@ class TodoManager
         private readonly MessageBusInterface $messageBus,
         private readonly array $config
     ) {
+        $this->asyncEnabled = ($config['async']['enabled'] ?? false);
     }
 
     /**
@@ -98,6 +101,17 @@ class TodoManager
             if ($updatedTodo) {
                 $event = new TodoEvent($updatedTodo, $todo);
                 $this->eventDispatcher->dispatch($event, TodoEvents::UPDATED);
+
+                // Dispatch specific field change events
+                if ($event->hasFieldChanged('assigned_to_user_id')) {
+                    $this->eventDispatcher->dispatch($event, TodoEvents::ASSIGNED);
+                }
+                if ($event->hasFieldChanged('priority')) {
+                    $this->eventDispatcher->dispatch($event, TodoEvents::PRIORITY_CHANGED);
+                }
+                if ($event->hasFieldChanged('status')) {
+                    $this->eventDispatcher->dispatch($event, TodoEvents::STATUS_CHANGED);
+                }
             }
 
             // Dispatch async message if enabled
@@ -292,20 +306,16 @@ class TodoManager
     public function cleanup(int $days = 90, bool $dryRun = false): int
     {
         $cutoffDate = new \DateTimeImmutable("-{$days} days");
+        $todos = $this->repository->findCompletedBefore($cutoffDate);
 
-        $todos = $this->repository->findAll([
-            'status' => TodoStatus::Completed->value,
-            'include_deleted' => false,
-        ]);
+        if ($dryRun) {
+            return count($todos);
+        }
 
         $count = 0;
         foreach ($todos as $todo) {
-            if ($todo->completedAt && $todo->completedAt < $cutoffDate) {
-                if (!$dryRun) {
-                    $this->hardDelete($todo->id);
-                }
-                $count++;
-            }
+            $this->hardDelete($todo->id);
+            $count++;
         }
 
         return $count;
@@ -316,13 +326,11 @@ class TodoManager
      */
     public function bulkUpdate(array $ids, array $data, ?int $userId = null): int
     {
-        $count = 0;
-        foreach ($ids as $id) {
-            if ($this->update($id, $data, $userId)) {
-                $count++;
-            }
+        if (empty($ids)) {
+            return 0;
         }
-        return $count;
+        $data['updated_by_user_id'] = $userId;
+        return $this->repository->batchUpdate($ids, $data);
     }
 
     /**
@@ -330,13 +338,10 @@ class TodoManager
      */
     public function bulkDelete(array $ids, ?int $userId = null): int
     {
-        $count = 0;
-        foreach ($ids as $id) {
-            if ($this->softDelete($id, $userId)) {
-                $count++;
-            }
+        if (empty($ids)) {
+            return 0;
         }
-        return $count;
+        return $this->repository->batchSoftDelete($ids);
     }
 
     /**
@@ -366,6 +371,6 @@ class TodoManager
      */
     private function isAsyncEnabled(): bool
     {
-        return ($this->config['async']['enabled'] ?? false);
+        return $this->asyncEnabled;
     }
 }

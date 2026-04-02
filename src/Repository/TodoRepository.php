@@ -82,8 +82,41 @@ class TodoRepository
      */
     public function count(array $filters = []): int
     {
-        $qb = $this->createFilteredQuery($filters);
-        $qb->select('COUNT(*) as count');
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('COUNT(*) as cnt')
+            ->from(Installer::TABLE_TODO_ITEMS);
+
+        if (!isset($filters['include_deleted']) || !$filters['include_deleted']) {
+            $qb->andWhere('deleted_at IS NULL');
+        }
+
+        if (isset($filters['status'])) {
+            $qb->andWhere('status = :status')->setParameter('status', $filters['status']);
+        }
+
+        if (isset($filters['priority'])) {
+            $qb->andWhere('priority = :priority')->setParameter('priority', $filters['priority']);
+        }
+
+        if (isset($filters['assigned_to_user_id'])) {
+            $qb->andWhere('assigned_to_user_id = :assigned_to')->setParameter('assigned_to', $filters['assigned_to_user_id']);
+        }
+
+        if (isset($filters['category'])) {
+            $qb->andWhere('category = :category')->setParameter('category', $filters['category']);
+        }
+
+        if (isset($filters['overdue']) && $filters['overdue']) {
+            $qb->andWhere('due_date < :now')
+                ->andWhere('status NOT IN (:closed_statuses)')
+                ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+                ->setParameter('closed_statuses', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], Connection::PARAM_STR_ARRAY);
+        }
+
+        if (isset($filters['search'])) {
+            $searchValue = substr((string) $filters['search'], 0, self::SEARCH_MAX_LENGTH);
+            $qb->andWhere('(title LIKE :search OR description LIKE :search)')->setParameter('search', '%' . $searchValue . '%');
+        }
 
         return (int) $qb->executeQuery()->fetchOne();
     }
@@ -245,6 +278,84 @@ class TodoRepository
     }
 
     /**
+     * Find completed todos older than the given cutoff date
+     */
+    public function findCompletedBefore(\DateTimeImmutable $cutoff): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NULL')
+            ->andWhere('status = :completed')
+            ->andWhere('completed_at < :cutoff')
+            ->setParameter('completed', TodoStatus::Completed->value)
+            ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
+
+        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+    }
+
+    /**
+     * Find soft-deleted todos whose deletedAt is before the given cutoff date
+     */
+    public function findSoftDeletedBefore(\DateTimeImmutable $cutoff): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NOT NULL')
+            ->andWhere('deleted_at < :cutoff')
+            ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
+
+        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+    }
+
+    /**
+     * Batch soft-delete todos by IDs
+     */
+    public function batchSoftDelete(array $ids): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $qb = $this->connection->createQueryBuilder();
+        $qb->update(Installer::TABLE_TODO_ITEMS)
+            ->set('deleted_at', ':deleted_at')
+            ->where('id IN (:ids)')
+            ->andWhere('deleted_at IS NULL')
+            ->setParameter('deleted_at', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+            ->setParameter('ids', $ids, Connection::PARAM_INT_ARRAY);
+
+        return (int) $qb->executeStatement();
+    }
+
+    /**
+     * Batch update a field for todos by IDs
+     */
+    public function batchUpdate(array $ids, array $data): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $qb = $this->connection->createQueryBuilder();
+        $qb->update(Installer::TABLE_TODO_ITEMS)
+            ->where('id IN (:ids)')
+            ->setParameter('ids', $ids, Connection::PARAM_INT_ARRAY);
+
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $qb->set('updated_at', ':updated_at')->setParameter('updated_at', $now);
+
+        foreach (['status', 'priority', 'category', 'assigned_to_user_id', 'updated_by_user_id'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $qb->set($field, ':' . $field)->setParameter($field, $data[$field]);
+            }
+        }
+
+        return (int) $qb->executeStatement();
+    }
+
+    /**
      * Get statistics
      */
     public function getStatistics(): array
@@ -327,31 +438,49 @@ class TodoRepository
             $qb->andWhere('deleted_at IS NULL');
         }
 
-        // Status filter
+        $this->applyStatusFilter($qb, $filters);
+        $this->applyPriorityFilter($qb, $filters);
+        $this->applyAssignedToFilter($qb, $filters);
+        $this->applyCategoryFilter($qb, $filters);
+        $this->applyRelatedElementFilter($qb, $filters);
+        $this->applyDueDateFilter($qb, $filters);
+        $this->applySearchFilter($qb, $filters);
+        $this->applyOverdueFilter($qb, $filters);
+
+        return $qb;
+    }
+
+    private function applyStatusFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['status'])) {
-            $qb->andWhere('status = :status')
-                ->setParameter('status', $filters['status']);
+            $qb->andWhere('status = :status')->setParameter('status', $filters['status']);
         }
+    }
 
-        // Priority filter
+    private function applyPriorityFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['priority'])) {
-            $qb->andWhere('priority = :priority')
-                ->setParameter('priority', $filters['priority']);
+            $qb->andWhere('priority = :priority')->setParameter('priority', $filters['priority']);
         }
+    }
 
-        // Assigned user filter
+    private function applyAssignedToFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['assigned_to_user_id'])) {
             $qb->andWhere('assigned_to_user_id = :assigned_to')
                 ->setParameter('assigned_to', $filters['assigned_to_user_id']);
         }
+    }
 
-        // Category filter
+    private function applyCategoryFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['category'])) {
-            $qb->andWhere('category = :category')
-                ->setParameter('category', $filters['category']);
+            $qb->andWhere('category = :category')->setParameter('category', $filters['category']);
         }
+    }
 
-        // Related element filter
+    private function applyRelatedElementFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['related_element_id'])) {
             $qb->andWhere('related_element_id = :element_id')
                 ->setParameter('element_id', $filters['related_element_id']);
@@ -361,8 +490,10 @@ class TodoRepository
             $qb->andWhere('related_element_type = :element_type')
                 ->setParameter('element_type', $filters['related_element_type']);
         }
+    }
 
-        // Date filters
+    private function applyDueDateFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['due_before'])) {
             $qb->andWhere('due_date < :due_before')
                 ->setParameter('due_before', $this->formatDateTime($filters['due_before']));
@@ -372,26 +503,28 @@ class TodoRepository
             $qb->andWhere('due_date > :due_after')
                 ->setParameter('due_after', $this->formatDateTime($filters['due_after']));
         }
+    }
 
-        // Search filter
+    private function applySearchFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['search'])) {
             $searchValue = substr((string) $filters['search'], 0, self::SEARCH_MAX_LENGTH);
             $qb->andWhere('(title LIKE :search OR description LIKE :search)')
                 ->setParameter('search', '%' . $searchValue . '%');
         }
+    }
 
-        // Overdue filter
+    private function applyOverdueFilter(QueryBuilder $qb, array $filters): void
+    {
         if (isset($filters['overdue']) && $filters['overdue']) {
             $qb->andWhere('due_date < :now')
                 ->andWhere('status NOT IN (:closed_statuses)')
                 ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
                 ->setParameter('closed_statuses', [
                     TodoStatus::Completed->value,
-                    TodoStatus::Cancelled->value
+                    TodoStatus::Cancelled->value,
                 ], Connection::PARAM_STR_ARRAY);
         }
-
-        return $qb;
     }
 
     /**
@@ -408,7 +541,11 @@ class TodoRepository
         }
 
         if (is_string($date)) {
-            return (new \DateTimeImmutable($date))->format('Y-m-d H:i:s');
+            try {
+                return (new \DateTimeImmutable($date))->format('Y-m-d H:i:s');
+            } catch (\Exception) {
+                return null;
+            }
         }
 
         return null;

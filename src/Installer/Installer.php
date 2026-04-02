@@ -167,14 +167,21 @@ class Installer extends SettingsStoreAwareInstaller
     public function uninstall(): void
     {
         $schemaManager = $this->db->createSchemaManager();
+        $currentSchema = $schemaManager->introspectSchema();
+        $schema = clone $currentSchema;
 
-        // Drop tables if they exist
-        if ($schemaManager->tablesExist([self::TABLE_TODO_ITEMS])) {
-            $this->db->executeStatement('DROP TABLE ' . self::TABLE_TODO_ITEMS);
+        if ($schema->hasTable(self::TABLE_TODO_AUDIT_LOG)) {
+            $schema->dropTable(self::TABLE_TODO_AUDIT_LOG);
         }
 
-        if ($schemaManager->tablesExist([self::TABLE_TODO_AUDIT_LOG])) {
-            $this->db->executeStatement('DROP TABLE ' . self::TABLE_TODO_AUDIT_LOG);
+        if ($schema->hasTable(self::TABLE_TODO_ITEMS)) {
+            $schema->dropTable(self::TABLE_TODO_ITEMS);
+        }
+
+        $comparator = $schemaManager->createComparator();
+        $schemaDiff = $comparator->compareSchemas($currentSchema, $schema);
+        foreach ($this->db->getDatabasePlatform()->getAlterSchemaSQL($schemaDiff) as $sql) {
+            $this->db->executeStatement($sql);
         }
 
         // Remove permissions

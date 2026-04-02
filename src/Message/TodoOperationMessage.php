@@ -25,36 +25,4 @@ class TodoOperationMessage
         public readonly ?int $userId = null
     ) {
     }
-
-    /**
-     * Get operation type
-     */
-    public function getOperation(): string
-    {
-        return $this->operation;
-    }
-
-    /**
-     * Get todo ID
-     */
-    public function getTodoId(): int
-    {
-        return $this->todoId;
-    }
-
-    /**
-     * Get operation data
-     */
-    public function getData(): array
-    {
-        return $this->data;
-    }
-
-    /**
-     * Get user ID
-     */
-    public function getUserId(): ?int
-    {
-        return $this->userId;
-    }
 }
