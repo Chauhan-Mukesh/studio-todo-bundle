@@ -69,7 +69,7 @@ studio_todo_api:
     resource: '@StudioTodoBundle/Resources/config/routes.yaml'
 ```
 
-### Step 5: Install Bundle
+### Step 4: Install Bundle
 
 ```bash
 bin/console pimcore:bundle:install StudioTodoBundle
@@ -80,13 +80,13 @@ This command will:
 - Create the `todo_audit_log` table for change tracking
 - Register three permissions: `studio_todo_view`, `studio_todo_manage`, `studio_todo_admin`
 
-### Step 6: Clear Cache
+### Step 5: Clear Cache
 
 ```bash
 bin/console cache:clear
 ```
 
-### Step 7: (Optional) Configure the Bundle
+### Step 6: (Optional) Configure the Bundle
 
 Create `config/packages/studio_todo.yaml`:
 
@@ -114,7 +114,7 @@ studio_todo:
     enabled: true
 ```
 
-### Step 8: (Optional) Build Studio UI Frontend
+### Step 7: (Optional) Build Studio UI Frontend
 
 If you want to use the React-based Studio UI interface:
 
