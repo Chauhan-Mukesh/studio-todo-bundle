@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ["8.2", "8.3"]
+        php: ["8.3", "8.4"]
 
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
           vendor/bin/php-cs-fixer fix \
             --dry-run \
             --diff \
-            --rules='@PSR12,@PHP82Migration' \
+            --rules='@PSR12,@PHP83Migration' \
             --path-mode=intersection \
             src/ tests/
         continue-on-error: false
@@ -90,10 +90,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up PHP 8.2
+      - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           coverage: none
           tools: composer:v2
 
@@ -141,7 +141,8 @@ jobs:
       - name: Check for ESLint configuration
         id: eslint-check
         run: |
-          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || \
+          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.cjs" ] || \
+             [ -f ".eslintrc.json" ] || \
              [ -f "eslint.config.js" ] || [ -f "eslint.config.mjs" ]; then
             echo "eslint_config=true" >> "$GITHUB_OUTPUT"
           else
