@@ -1,0 +1,647 @@
+================================================================================
+  CODE REVIEW ISSUES REPORT
+  Repository : Chauhan-Mukesh/studio-todo-bundle
+  Reviewed   : 2026-04-02
+  Reviewer   : GitHub Copilot (automated + manual analysis)
+================================================================================
+
+This report covers the main branch and categorises every issue found.
+Severity legend: [CRITICAL] [HIGH] [MEDIUM] [LOW]
+
+
+================================================================================
+SECTION 1 – FUNCTIONALITY-BREAKING / PIMCORE 12 COMPATIBILITY ISSUES
+================================================================================
+
+[CRITICAL] ISSUE-001: No route registration file exists
+File : (missing) src/Resources/config/routes.yaml
+       (missing) config/routes/studio_todo.yaml
+Detail: The controllers use PHP #[Route] attributes but no routing configuration
+  file is provided to import those attributes. Without a routes.yaml (or an
+  equivalent import in the bundle extension), every API endpoint is
+  unreachable. The StudioTodoExtension does not load any routes resource, and
+  the README installation guide does not mention adding a routes import.
+  All API calls from the frontend will return 404.
+
+[CRITICAL] ISSUE-002: No authentication/authorisation on any API endpoint
+Files : src/Controller/Api/TodoController.php
+        src/Controller/Api/AuditController.php
+        src/Controller/Api/StatsController.php
+Detail: None of the three controllers call denyAccessUnlessGranted() or check
+  for any Pimcore permissions. Three permission constants are defined
+  (TodoPermission::View / Manage / Admin) and registered during install, but
+  they are never enforced. Any unauthenticated HTTP client can read, create,
+  update, or delete todos and view the full audit trail.
+
+[CRITICAL] ISSUE-003: StudioTodoBundle::getInstaller() accesses $this->container directly
+File : src/StudioTodoBundle.php  line 57
+Detail:
+  $connection = $this->container->get('doctrine.dbal.default_connection');
+  return new Installer($this, $connection);
+  Direct container access in a bundle class is an anti-pattern and is
+  deprecated since Symfony 5. In Pimcore 12 (Symfony 6/7), the container
+  may not be set on the bundle at all outside the boot() lifecycle. The
+  Installer should be registered as a service and injected via DI. This can
+  silently fail at runtime.
+
+[CRITICAL] ISSUE-004: SQL injection via unvalidated sort/order query parameters
+File : src/Repository/TodoRepository.php  lines 60-61
+Detail:
+  ->orderBy($filters['sort'] ?? 'created_at', $filters['order'] ?? 'DESC');
+  The 'sort' value is passed directly to DBAL's orderBy() as the column name
+  without any whitelist validation. An attacker can inject an arbitrary SQL
+  expression. Although the controller does strtoupper() on 'order', it does
+  not validate 'sort'. A whitelist of permitted sort columns must be applied
+  before calling orderBy().
+
+[CRITICAL] ISSUE-005: Route namespace attribute import is deprecated in Symfony 6.4+
+Files : src/Controller/Api/TodoController.php  line 21
+        src/Controller/Api/AuditController.php  line 18
+        src/Controller/Api/StatsController.php  line 17
+Detail:
+  use Symfony\Component\Routing\Annotation\Route;
+  In Symfony 6.4 the annotation-based Route class was moved; the correct
+  import for attribute-based routing in Symfony 6.4 / 7.x is:
+  use Symfony\Component\Routing\Attribute\Route;
+  Using the Annotation\Route class causes a deprecation warning in Symfony 6.4
+  and will fail in future versions.
+
+[HIGH] ISSUE-006: getUserId() silently returns null; unauthenticated writes are allowed
+File : src/Controller/Api/TodoController.php  lines 401-405
+Detail: getUserId() returns null when no Pimcore user is logged in, and the
+  code simply passes null as $userId to all mutation operations. This means
+  all CRUD operations succeed without any user context and audit logs record
+  null as the acting user. A proper guard (denyAccessUnlessGranted or a
+  redirect) is required.
+
+[HIGH] ISSUE-007: Pimcore Studio UI frontend integration is missing
+Files : assets/studio/js/src/index.tsx
+        assets/studio/js/src/modules/todo-bundle/components/Dashboard.tsx
+Detail: The index.tsx entry point mounts the React app by looking for a raw
+  DOM element with id="studio-todo-root". Pimcore Studio UI uses a module/
+  widget registration API (typically via @pimcore-studio/ui or the Pimcore
+  Studio SDK). The bundle does not register itself as a Studio widget, does not
+  integrate with Studio's navigation, and does not use Studio's routing system.
+  The bundle will therefore not appear in Pimcore Studio UI.
+
+[HIGH] ISSUE-008: No CSRF protection or Pimcore auth token in frontend API calls
+File : assets/studio/js/src/modules/todo-bundle/services/todoApi.ts
+Detail: The Axios instance is created with only Content-Type headers. Pimcore
+  Studio UI API calls require the Pimcore auth token (X-Pimcore-Simple-Auth-
+  Token or cookie-based session). Without this, all API calls will be rejected
+  by Pimcore's authentication layer once ISSUE-002 is fixed.
+
+[HIGH] ISSUE-009: Missing Pimcore 12 bundle metadata / pimcore.yml / attributes
+File : src/StudioTodoBundle.php
+Detail: Pimcore 12 recommends bundles declare themselves via the
+  #[AsPimcoreBundle] attribute (or equivalent configuration) for auto-
+  discovery features. The extra.pimcore.bundles key in composer.json is the
+  legacy Pimcore auto-registration mechanism and may not work reliably in
+  Pimcore 12 depending on the project setup.
+
+[HIGH] ISSUE-010: Double event dispatch on complete() – UPDATED fired twice
+File : src/Service/TodoManager.php  lines 202-223
+Detail: complete() calls $this->update() internally. update() already
+  dispatches the TodoEvents::UPDATED event. Then complete() dispatches
+  TodoEvents::COMPLETED separately. Any listener registered to UPDATED will
+  run twice for a completion action (once inside update() and once more if a
+  listener maps COMPLETED → UPDATED). COMPLETED and STATUS_CHANGED events
+  from TodoEvents are also never dispatched; only the generic UPDATED is.
+
+[HIGH] ISSUE-011: StatisticsService::getStatisticsByCategory() loads up to 10 000 rows in PHP
+File : src/Service/StatisticsService.php  line 155
+Detail:
+  $todos = $this->repository->findAll(['limit' => 10000]);
+  Category statistics are computed by loading up to 10 000 full TodoItem
+  objects into PHP memory and iterating over them. This should be a single
+  GROUP BY SQL query in the repository layer, matching the pattern already
+  used for getStatisticsByUser().
+
+[MEDIUM] ISSUE-012: TodoManager::cleanup() loads all completed todos into memory
+File : src/Service/TodoManager.php  lines 278-296
+Detail: cleanup() calls findAll() with a status filter but no date condition,
+  loading every completed todo into memory and filtering by completedAt in
+  PHP. With large datasets this will exhaust memory. A targeted database query
+  (WHERE completed_at < :cutoff) should be used instead.
+
+[MEDIUM] ISSUE-013: CleanupCommand fetches all todos including deleted for hard-delete scan
+File : src/Command/CleanupCommand.php  lines 77-89
+Detail: The command calls findAll(['include_deleted' => true]) with no further
+  filter, loading every todo record (including non-deleted ones) to find those
+  whose deletedAt is older than the cutoff. A targeted SQL query is required.
+
+[MEDIUM] ISSUE-014: bulkUpdate() and bulkDelete() execute N individual queries
+File : src/Service/TodoManager.php  lines 302-325
+Detail: Both methods loop over IDs and call update()/softDelete() for each one
+  individually. Each call involves a SELECT + UPDATE round-trip, plus event
+  dispatch and async message per item. For large bulk operations this is very
+  slow. A single batch UPDATE query with an IN clause should be used.
+
+
+================================================================================
+SECTION 2 – SECURITY ISSUES
+================================================================================
+
+[CRITICAL] ISSUE-015: No input validation on JSON body in create/update endpoints
+Files : src/Controller/Api/TodoController.php  lines 136, 177
+Detail:
+  $data = json_decode($request->getContent(), true);
+  There is no check whether json_decode() returned null (malformed JSON). If
+  an attacker sends a non-JSON body, $data will be null, and the code will
+  either throw a PHP error on array access or produce unexpected behaviour.
+  A proper JSON parse error check and 400 response is required.
+
+[HIGH] ISSUE-016: Bulk operation IDs are not cast to integers before database use
+File : src/Controller/Api/TodoController.php  lines 337-365 (bulkUpdate/Delete)
+Detail: The $data['ids'] array is passed directly from user JSON to the service
+  layer and then to individual update()/softDelete() calls. IDs are not
+  validated to be positive integers. Passing strings or floats can cause
+  unexpected type coercion in Doctrine DBAL queries.
+
+[HIGH] ISSUE-017: Arbitrary search string is concatenated before binding
+File : src/Repository/TodoRepository.php  lines 347-349
+Detail:
+  ->setParameter('search', '%' . $filters['search'] . '%');
+  The value is ultimately bound as a parameter (safe from SQL injection), but
+  there is no length limit or sanitation on the search string. An excessively
+  long search string could trigger a denial-of-service via database LIKE scan.
+  A maximum length check should be applied.
+
+[MEDIUM] ISSUE-018: Date strings are parsed with new \DateTimeImmutable() without try/catch
+Files : src/Model/TodoItem.php  lines 116-120
+        src/Repository/TodoRepository.php  line 380
+Detail: Malformed date strings in database rows or API input will throw an
+  unhandled \Exception. The fromArray() method and formatDateTime() method
+  should catch \Exception and either return null or throw a domain-level
+  exception with a meaningful message.
+
+[MEDIUM] ISSUE-019: TodoOperationMessage carries raw $data array from user input
+File : src/Message/TodoOperationMessage.php
+Detail: The $data property is populated with the raw parsed request body from
+  the controller before any validation. Sensitive fields (e.g. passwords if
+  added in meta) or excessively large payloads travel through the message bus
+  and are potentially stored in the queue backend. Only the minimal data
+  required for async processing should be carried in the message.
+
+
+================================================================================
+SECTION 3 – DOCUMENTATION / README MISMATCH ISSUES
+================================================================================
+
+[HIGH] ISSUE-020: README claims real-time updates are implemented (✅)
+File : README.md  line 22
+Detail: README lists "Real-time Updates: Live synchronization across users
+  (Studio UI)" as a completed feature. The configuration has
+  enable_realtime defaulting to false with a note "requires Mercure". No
+  Mercure integration, SSE, or WebSocket code exists anywhere in the bundle.
+  The feature is not implemented.
+
+[HIGH] ISSUE-021: README claims multi-language / i18n support is implemented (✅)
+File : README.md  line 24
+Detail: README lists "Multi-language: Full i18n support (English, German
+  included)" as a completed feature. No translation files (Resources/
+  translations/, *.xliff, *.yaml i18n) exist in the repository. No Symfony
+  Translator usage is present. This is completely unimplemented.
+
+[HIGH] ISSUE-022: README claims "Comprehensive Tests" are in place (✅)
+File : README.md  line 33 ; tests/Integration/Api/TodoControllerTest.php
+Detail: The only integration test is a single placeholder method
+  testApiStructure() that contains only $this->assertTrue(true). It provides
+  zero actual coverage. All real test scenarios are commented out. The README's
+  claim of "comprehensive" integration coverage is misleading.
+
+[MEDIUM] ISSUE-023: Defined TodoEvents constants ASSIGNED, PRIORITY_CHANGED, STATUS_CHANGED are never dispatched
+File : src/Event/TodoEvents.php  lines 44-58
+Detail: Three event constants are declared and documented but are never
+  dispatched in TodoManager, TodoEventListener, or anywhere else. Code that
+  external bundles may register listeners on these events will silently receive
+  no calls.
+
+[MEDIUM] ISSUE-024: AuditController URL in frontend does not match backend route
+Files : assets/studio/js/src/modules/todo-bundle/services/todoApi.ts  line 189
+        src/Controller/Api/AuditController.php  line 25
+Detail: The frontend fetches audit logs at /pimcore-studio/api/studio-todo/
+  audit/{todoId} via GET. The backend route is #[Route('/pimcore-studio/api/
+  studio-todo/audit', ...)] with a sub-route /{todoId}. The path is correct,
+  but the StatsController base URL is /stats, while the frontend calls /stats
+  and /stats/by-user. These match currently, but any future rename will not be
+  caught because there is no API contract or OpenAPI spec.
+
+[LOW] ISSUE-025: IMPLEMENTATION_SUMMARY.md duplicates README content without adding value
+File : IMPLEMENTATION_SUMMARY.md
+Detail: The file largely repeats information already in README.md and contains
+  no additional technical specification, architecture decisions, or API schema.
+  It should either be removed, or expanded into a proper architecture document.
+
+[LOW] ISSUE-026: No OpenAPI / Swagger specification
+Detail: The bundle provides a REST API with 10+ endpoints but no OpenAPI
+  (swagger) specification is provided, making integration harder for consumers.
+
+
+================================================================================
+SECTION 4 – CODE QUALITY / LOGIC ISSUES
+================================================================================
+
+[HIGH] ISSUE-027: isAsyncEnabled() defaults to true when config key is missing
+File : src/Service/TodoManager.php  line 354
+Detail:
+  return ($this->config['async']['enabled'] ?? true);
+  If the config array is empty or the async key is absent, async processing
+  is silently enabled. In a project that hasn't configured a Messenger bus,
+  this will cause a runtime error on every create/update/delete operation.
+  The default should match the configuration default (true) but must be
+  paired with a check that the message bus is actually available.
+
+[HIGH] ISSUE-028: StatisticsService cache variable $item used outside its initialisation scope
+File : src/Service/StatisticsService.php  lines 41-65 (and similar patterns)
+Detail: The pattern:
+  if ($this->isCacheEnabled()) { $item = $this->cache->getItem(...); ... }
+  // later:
+  if ($this->isCacheEnabled()) { $item->set(...); }
+  If isCacheEnabled() returns different values between the two calls (which
+  is theoretically possible if config changes at runtime) or if cache throws,
+  $item is undefined in the second block. $item should be declared before the
+  conditional block.
+
+[MEDIUM] ISSUE-029: TodoManager::complete() event duplication and missing COMPLETED event dispatch in listener
+File : src/Service/TodoManager.php  lines 202-223
+        src/EventListener/TodoEventListener.php
+Detail: TodoEventListener only listens to studio_todo.completed but has no
+  handler registered in services.yaml for that event. The services.yaml only
+  wires onTodoCreated / Updated / Deleted / Completed / Restored but the
+  COMPLETED listener tag is missing. Cross-reference: the service definition
+  at line 94-98 of services.yaml does register onTodoCompleted, but the method
+  in the listener does nothing useful (only logs). If the intent is to send
+  notifications on completion, that logic is absent.
+
+[MEDIUM] ISSUE-030: CleanupCommand ignores the configured auto_cleanup_days in dry-run mode count
+File : src/Command/CleanupCommand.php  line 82-88
+Detail: In dry-run mode, hardDeleteCount is incremented correctly, but the
+  condition checks $todo->deletedAt against $cutoffDate after loading every
+  record including non-deleted ones. Non-deleted todos with deletedAt == null
+  will never match but the loop wastes time iterating them. There is no
+  filtering at the query level.
+
+[MEDIUM] ISSUE-031: TodoRepository::count() selects COUNT over unfiltered query, then overrides select
+File : src/Repository/TodoRepository.php  lines 72-76
+Detail:
+  $qb = $this->createFilteredQuery($filters);  // select('*')
+  $qb->select('COUNT(*) as count');
+  Calling select() after createFilteredQuery overwrites the SELECT clause
+  correctly, but this is fragile and confusing. count() should use its own
+  clean query builder rather than overriding the one from createFilteredQuery.
+
+[MEDIUM] ISSUE-032: Installer instantiated with 'new' keyword, bypassing the DI container
+File : src/StudioTodoBundle.php  lines 55-59
+Detail: The Installer is constructed manually with new Installer($this,
+  $connection). Any additional services the Installer might later require
+  (e.g. a logger) would need to be pulled manually. The Installer should be
+  registered as a service and retrieved via $this->container->get() or, better,
+  injected into a factory service.
+
+[LOW] ISSUE-033: TodoRepository services are declared both by glob and explicit definition
+File : src/Resources/config/services.yaml  lines 8-10, 13-21
+Detail: The glob registration (ChauhanMukesh\StudioTodoBundle\: resource:
+  '../../*') will auto-wire all classes under src/ including the repositories.
+  The explicit service definitions for TodoRepository and AuditRepository
+  below that create duplicate definitions. The explicit definitions override
+  the auto-wired ones, which is the intended behaviour, but the duplication
+  adds confusion and maintenance overhead.
+
+[LOW] ISSUE-034: Services unnecessarily marked public: true
+File : src/Resources/config/services.yaml  lines 16, 21, 31, 37, 43, 50, 58, 63
+Detail: Many services are marked public: true which is required only when they
+  are fetched directly via $container->get(). In Symfony best practice, only
+  controllers should be public (via the controller.service_arguments tag).
+  Making services public increases the container size and reduces compile-time
+  optimisation.
+
+[LOW] ISSUE-035: TodoOperationMessage getters are redundant given public readonly properties
+File : src/Message/TodoOperationMessage.php  lines 30-58
+Detail: The class exposes $operation, $todoId, $data, $userId as public
+  readonly properties and also provides getOperation(), getTodoId(), getData(),
+  getUserId() methods. The getters duplicate the property access and add
+  unnecessary boilerplate.
+
+[LOW] ISSUE-036: Installer::uninstall() uses raw DROP TABLE SQL instead of schema tools
+File : src/Installer/Installer.php  lines 173-177
+Detail:
+  $this->db->executeStatement('DROP TABLE ' . self::TABLE_TODO_ITEMS);
+  The install() method uses the Schema abstraction (getAlterSchemaSQL), but
+  uninstall() uses a raw SQL string. This is inconsistent and bypasses
+  platform-specific SQL generation that the Schema layer provides.
+
+
+================================================================================
+SECTION 5 – PHP PSR STANDARD ISSUES
+================================================================================
+
+[MEDIUM] ISSUE-037: Routing annotation import violates PSR use-statement ordering
+Files : All three Controller files
+Detail: use statements should be ordered: PHP built-ins → third-party → project.
+  The Symfony\Component\Routing\Annotation\Route import (see also ISSUE-005)
+  is mixed with other framework imports inconsistently.
+
+[MEDIUM] ISSUE-038: PHPDoc @return tags missing on several public methods
+Files : src/Service/TodoManager.php (findOverdue, findByUser, findByElement,
+          cleanup, bulkUpdate, bulkDelete)
+        src/Repository/TodoRepository.php (findAll, findByUser, findByElement,
+          findOverdue)
+        src/Controller/Api/TodoController.php (list, get, create, etc.)
+Detail: PSR-5 and PSR-19 require that public API methods document their return
+  types with @return tags where the signature alone is ambiguous. Several
+  methods return array without specifying the element type (e.g. @return
+  TodoItem[]).
+
+[MEDIUM] ISSUE-039: @throws PHPDoc annotation missing on methods that throw exceptions
+Files : src/Repository/TodoRepository.php (formatDateTime throws on bad input)
+        src/Model/TodoItem.php (fromArray throws on bad date)
+        src/Command/CreateCommand.php (execute throws \RuntimeException)
+Detail: Methods that can throw exceptions should document them with @throws to
+  comply with PSR-5 and help IDE tooling and static analysis.
+
+[LOW] ISSUE-040: File-level docblock missing @package tag
+Files : All PHP source files
+Detail: PSR-5 recommends a @package tag in file-level docblocks to identify
+  the component within the project. None of the files include it.
+
+[LOW] ISSUE-041: Enum constants lack @var PHPDoc for complex constant types
+File : src/Enum/TodoPermission.php  line 28 (const CATEGORY)
+Detail: The class constant CATEGORY is a plain string constant on an enum.
+  It would be cleaner as a separate enum case or moved to a dedicated
+  CategoryConstants class, since mixing class constants with enum cases can
+  confuse static analysers that assume all public members of an enum are cases.
+
+
+================================================================================
+SECTION 6 – ES6 / ES7 / TYPESCRIPT / FRONTEND LINTING ISSUES
+================================================================================
+
+[HIGH] ISSUE-042: useEffect missing fetchTodos in dependency array (react-hooks exhaustive-deps)
+File : assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx  line 73-75
+Detail:
+  useEffect(() => { fetchTodos(); }, [pagination.current, pagination.pageSize, filters]);
+  fetchTodos is referenced inside the effect but not listed as a dependency.
+  This violates the react-hooks/exhaustive-deps ESLint rule. fetchTodos should
+  be wrapped in useCallback, or the fetch logic should be moved inline.
+
+[HIGH] ISSUE-043: fetchTodos is recreated on every render without useCallback
+File : assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx  line 47
+Detail: The function fetchTodos is defined directly in the component body.
+  Every render creates a new function reference. When used as an effect
+  dependency (once ISSUE-042 is fixed) it will cause an infinite loop.
+  It must be wrapped in useCallback with a stable dependency list.
+
+[HIGH] ISSUE-044: Bulk delete onClick handler is empty (TODO comment left in production code)
+File : assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx  lines 306-309
+Detail:
+  <Button danger onClick={() => { // TODO: Bulk delete }}>
+  The bulk delete feature is completely unimplemented. The button is rendered
+  and clickable but does nothing. Shipping a visible UI button with empty
+  behaviour is a user experience defect.
+
+[HIGH] ISSUE-045: Edit action in dropdown menu is unimplemented (TODO comment)
+File : assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx  lines 215-217
+Detail:
+  case 'edit': // TODO: Open edit modal
+  The Edit dropdown item does nothing. No edit modal or form component exists.
+
+[MEDIUM] ISSUE-046: antd/dist/reset.css import is deprecated in Ant Design 5.x
+File : assets/studio/js/src/index.tsx  line 9
+Detail:
+  import 'antd/dist/reset.css';
+  In Ant Design 5.x, the recommended way to apply global styles is to use
+  the ConfigProvider with theme tokens. The dist/reset.css path is a legacy
+  import and may not exist in future Ant Design versions.
+
+[MEDIUM] ISSUE-047: fetchStatisticsByUser() return type is Promise<ApiResponse<any[]>>
+File : assets/studio/js/src/modules/todo-bundle/services/todoApi.ts  line 174
+Detail: Using any[] bypasses TypeScript's type system entirely. A proper
+  UserStatistics interface should be defined and used here.
+
+[MEDIUM] ISSUE-048: No ESLint configuration file in the assets directory
+File : assets/studio/ (missing .eslintrc.js / eslint.config.js)
+Detail: There is no ESLint configuration. The package.json has no lint script.
+  Code style issues, accessibility problems, and React-specific anti-patterns
+  are not caught automatically.
+
+[MEDIUM] ISSUE-049: No test script for frontend (no jest/vitest configuration)
+File : assets/studio/package.json
+Detail: The package.json scripts section only has build, dev, and preview.
+  No test runner is configured for frontend unit or component tests.
+
+[LOW] ISSUE-050: tsconfig.json references tsconfig.node.json which does not exist
+File : assets/studio/tsconfig.json  line 23
+Detail:
+  "references": [{ "path": "./tsconfig.node.json" }]
+  There is no tsconfig.node.json in the assets/studio directory. This will
+  cause tsc --build to fail, and some IDEs will show a configuration error.
+
+[LOW] ISSUE-051: status.replace('_', ' ') only replaces the first underscore
+File : assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx  line 150
+Detail:
+  status.replace('_', ' ').toUpperCase()
+  String.replace() with a string pattern only replaces the first occurrence.
+  For "in_progress" this works (only one underscore), but if future statuses
+  contain multiple underscores this will produce wrong labels. Use a global
+  regex: status.replace(/_/g, ' ').toUpperCase()
+
+[LOW] ISSUE-052: Hardcoded color values in Dashboard and TodoList components
+Files : assets/studio/js/src/modules/todo-bundle/components/Dashboard.tsx
+          lines 68, 78, 88
+        assets/studio/js/src/modules/todo-bundle/components/TodoList.tsx
+          line 178
+Detail: Colors such as '#1890ff', '#52c41a', '#ff4d4f' are Ant Design 4.x
+  palette values hardcoded inline. Ant Design 5 uses design tokens via
+  ConfigProvider. These values should reference theme tokens, not hardcoded hex.
+
+
+================================================================================
+SECTION 7 – INDENTATION / FORMATTING ISSUES
+================================================================================
+
+[LOW] ISSUE-053: .gitignore references Symfony 2/3/4 artefacts, not current project structure
+File : .gitignore
+Detail: The .gitignore includes legacy Symfony 2 and 3 paths (/app/cache/,
+  /app/logs/, /web/bundles/, etc.) that have no relevance to a modern Pimcore
+  12 / Symfony 7 bundle. The file should be updated to reflect the actual
+  project structure.
+
+[LOW] ISSUE-054: Trailing comma in Installer constructor parameter list
+File : src/Installer/Installer.php  line 40
+Detail:
+  protected readonly Connection $db,   <- trailing comma
+  Trailing commas in constructor argument lists are valid PHP 8 syntax, but
+  the style is inconsistent across the codebase (most other constructors do not
+  use trailing commas).
+
+[LOW] ISSUE-055: Multi-line array in TodoRepository::update() breaks visual alignment
+File : src/Repository/TodoRepository.php  lines 120-122
+Detail:
+  foreach (['title', 'description', 'status', 'workflow_state', 'priority',
+            'related_element_id', 'related_element_type', 'related_class',
+            'assigned_to_user_id', 'updated_by_user_id', 'position', 'category'] as $field) {
+  The continuation lines are indented with spaces to align with the opening
+  bracket rather than following a consistent 4-space PSR-12 indent. This
+  should use a single indentation level per continuation line.
+
+
+================================================================================
+SECTION 8 – CONFIGURATION ISSUES
+================================================================================
+
+[HIGH] ISSUE-056: composer.json missing minimum-stability, prefer-stable, and suggest sections
+File : composer.json
+Detail: A production-quality bundle should declare:
+  "minimum-stability": "stable",
+  "prefer-stable": true
+  to prevent Packagist from pulling unstable dependencies. The "suggest"
+  section should document optional dependencies (e.g. symfony/mercure for
+  real-time, pimcore/studio-ui-bundle for widget integration).
+
+[MEDIUM] ISSUE-057: services.yaml resource glob is too broad
+File : src/Resources/config/services.yaml  lines 8-10
+Detail:
+  resource: '../../*'
+  This will pick up every file and subdirectory under the bundle root,
+  including non-PHP files, tests, and the assets directory. This should be
+  scoped to the src/ directory:
+  resource: '../../src/*'
+  and the exclude pattern updated accordingly.
+
+[MEDIUM] ISSUE-058: No phpunit.xml configuration file
+File : (missing) phpunit.xml / phpunit.xml.dist
+Detail: PHPUnit requires a phpunit.xml(.dist) configuration to define test
+  suites, bootstrap, coverage settings, and environment variables. Running
+  vendor/bin/phpunit without a config file will use defaults that may not
+  match the project structure.
+
+[MEDIUM] ISSUE-059: No PHP CS Fixer or PHPCS configuration
+File : (missing) .php-cs-fixer.php / .phpcs.xml
+Detail: There is no code style enforcement configuration. PSR-12 compliance
+  cannot be verified automatically without a CS Fixer or PHPCS config file.
+
+[LOW] ISSUE-060: No .editorconfig file
+File : (missing) .editorconfig
+Detail: Without an .editorconfig, different editors may produce inconsistent
+  indentation (tabs vs spaces, line endings) across contributors.
+
+[LOW] ISSUE-061: tsconfig.json does not reference all source directories
+File : assets/studio/tsconfig.json  line 21
+Detail: "include": ["js/src"] only includes the source directory. The config
+  file and build tool entry files (rsbuild.config.ts) are not included in the
+  TypeScript project, meaning type errors in build config are not caught.
+
+
+================================================================================
+SECTION 9 – SONARQUBE / STATIC ANALYSIS ISSUES
+================================================================================
+
+[HIGH] ISSUE-062: Catching generic \Exception instead of specific exception types
+Files : src/Controller/Api/TodoController.php  lines 154, 196, 234, 276, ...
+        src/Command/CreateCommand.php  line 104
+        src/Command/CleanupCommand.php  line 102
+        src/Command/StatsCommand.php  line 92
+Detail: Catching \Exception is a SonarQube "Code Smell" (squid:S2221 / S1181).
+  Catching a broad exception masks unexpected errors. Specific exception types
+  (\InvalidArgumentException, \RuntimeException, DBAL exceptions) should be
+  caught individually.
+
+[MEDIUM] ISSUE-063: Cyclomatic complexity of createFilteredQuery() is high
+File : src/Repository/TodoRepository.php  lines 290-363
+Detail: The createFilteredQuery() method has 10+ conditional branches
+  (status, priority, assigned_to_user_id, category, related_element_id,
+  related_element_type, due_before, due_after, search, overdue, include_deleted).
+  SonarQube would flag this as exceeding the recommended cyclomatic complexity
+  threshold of 10. Extracting filter-application into dedicated private methods
+  would improve readability and testability.
+
+[MEDIUM] ISSUE-064: Dead code – TodoEvents::ASSIGNED / PRIORITY_CHANGED / STATUS_CHANGED constants
+File : src/Event/TodoEvents.php  lines 44-58
+Detail: These constants are defined but never referenced anywhere in the
+  codebase (verified via full-repo search). SonarQube would flag this as
+  "Unused code" (squid:S1144 / S1481).
+
+[MEDIUM] ISSUE-065: isAsyncEnabled() result is not cached; called multiple times per request
+File : src/Service/TodoManager.php  line 352-355
+Detail: isAsyncEnabled() reads from the config array on every call. While not
+  expensive, SonarQube would flag the repeated array access as a minor
+  inefficiency. The value should be computed once in the constructor.
+
+[LOW] ISSUE-066: Boolean method return compared with == instead of === or direct truthiness check
+File : src/Repository/TodoRepository.php  line 147
+Detail:
+  return $result > 0;
+  While technically correct, returning the comparison result of a DBAL integer
+  directly is fine, but the pattern is inconsistent: softDelete returns the
+  comparison inline while update stores in $result first. Consistency is
+  recommended.
+
+[LOW] ISSUE-067: Magic number 10000 in getStatisticsByCategory()
+File : src/Service/StatisticsService.php  line 155
+Detail:
+  $todos = $this->repository->findAll(['limit' => 10000]);
+  The magic number 10000 should be a named constant. See also ISSUE-011
+  (this approach should be replaced with a GROUP BY query entirely).
+
+
+================================================================================
+SECTION 10 – MISSING FEATURES / INCOMPLETE IMPLEMENTATION
+================================================================================
+
+[HIGH] ISSUE-068: No Pimcore Studio UI widget / navigation integration
+Detail: To appear in Pimcore Studio UI, a bundle must register widgets,
+  navigation items, and route segments through the Studio UI SDK / plugin
+  API. This bundle has none of that integration. The component will never
+  be displayed in the Pimcore Studio interface.
+
+[HIGH] ISSUE-069: Notification system is declared in config but not implemented
+Files : src/Resources/config/services.yaml (missing notification service)
+        src/DependencyInjection/Configuration.php (notifications block)
+Detail: The configuration defines notifications.enabled, channels,
+  notify_on_assignment, notify_on_due_date, reminder_before_days — but no
+  notification service or mailer integration exists. The README does not
+  list this as a feature, but the configuration implies it.
+
+[MEDIUM] ISSUE-070: Workflow integration declared in config but not implemented
+File : src/DependencyInjection/Configuration.php  lines 144-156
+Detail: The configuration defines workflow.enabled and workflow.default_workflow
+  but no Symfony Workflow component integration, workflow transitions, or
+  Pimcore workflow hooks are implemented. The workflow_state column exists in
+  the schema but is never managed programmatically.
+
+[MEDIUM] ISSUE-071: No route for hard delete exposed in the API
+Detail: TodoManager::hardDelete() is implemented but no API endpoint exposes
+  it. The README mentions "Soft Deletes: Safe deletion with recovery capability"
+  but admin-level hard delete (mapped to TodoPermission::Admin) is not
+  accessible via the API.
+
+[LOW] ISSUE-072: No database migration system; schema changes require manual intervention
+Detail: The bundle creates tables at install time but provides no migration
+  mechanism. If a future version adds or modifies columns, existing
+  installations will break without manual database updates. A Doctrine
+  Migrations integration should be added.
+
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+Category                            | CRITICAL | HIGH | MEDIUM | LOW | Total
+------------------------------------|----------|------|--------|-----|------
+Functionality / Pimcore 12 compat   |    5     |  9   |   5    |  0  |  19
+Security                            |    1     |  2   |   2    |  0  |   5
+Documentation / README mismatch     |    0     |  3   |   2    |  2  |   7
+Code quality / logic                |    0     |  2   |   4    |  5  |  11
+PHP PSR standards                   |    0     |  0   |   3    |  2  |   5
+ES6/ES7 / TypeScript / Frontend     |    0     |  4   |   3    |  3  |  10
+Indentation / formatting            |    0     |  0   |   0    |  3  |   3
+Configuration                       |    0     |  1   |   3    |  2  |   6
+SonarQube / static analysis         |    0     |  1   |   3    |  2  |   6
+Missing features / incomplete impl  |    0     |  2   |   2    |  1  |   5
+------------------------------------|----------|------|--------|-----|------
+TOTAL                               |    6     | 24   |  27    | 20  |  77
+
+================================================================================
+END OF REPORT
+================================================================================

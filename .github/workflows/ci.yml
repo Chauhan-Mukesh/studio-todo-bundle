@@ -1,0 +1,326 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ============================================================
+  # JOB 1 – PHP static analysis, coding standards, and unit tests
+  # ============================================================
+  php-quality:
+    name: PHP Quality (${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, pdo, pdo_mysql, mbstring, json, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: php-${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            php-${{ matrix.php }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      # ---- PHP Coding Standards (PSR-12) ----------------------
+      - name: Install PHP CS Fixer
+        run: composer require --dev friendsofphp/php-cs-fixer --no-interaction --quiet
+
+      - name: Check PHP coding standards (PSR-12)
+        run: |
+          vendor/bin/php-cs-fixer fix \
+            --dry-run \
+            --diff \
+            --rules='@PSR12,@PHP82Migration' \
+            --path-mode=intersection \
+            src/ tests/
+        continue-on-error: false
+
+      # ---- PHPStan static analysis ----------------------------
+      - name: Install PHPStan
+        run: composer require --dev phpstan/phpstan --no-interaction --quiet
+
+      - name: Run PHPStan (level 6)
+        run: |
+          vendor/bin/phpstan analyse \
+            --level=6 \
+            --no-progress \
+            src/ tests/
+        continue-on-error: false
+
+      # ---- PHPUnit unit tests ---------------------------------
+      - name: Run PHPUnit (unit tests)
+        run: |
+          vendor/bin/phpunit \
+            --testdox \
+            --colors=always \
+            tests/Unit/
+        env:
+          APP_ENV: test
+
+  # ============================================================
+  # JOB 2 – Security vulnerability scan (PHP dependencies)
+  # ============================================================
+  php-security:
+    name: PHP Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run Symfony Security Checker
+        uses: symfonycorp/security-checker-action@v5
+
+  # ============================================================
+  # JOB 3 – Frontend: TypeScript type check, lint, and build
+  # ============================================================
+  frontend-quality:
+    name: Frontend Quality (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assets/studio
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: assets/studio/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # ---- TypeScript type check ------------------------------
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        continue-on-error: false
+
+      # ---- ESLint (lint if config exists, warn otherwise) -----
+      - name: Check for ESLint configuration
+        id: eslint-check
+        run: |
+          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || \
+             [ -f "eslint.config.js" ] || [ -f "eslint.config.mjs" ]; then
+            echo "eslint_config=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No ESLint configuration found. " \
+              "Add eslint.config.js to enable linting (see ISSUE-048)."
+            echo "eslint_config=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ESLint
+        if: steps.eslint-check.outputs.eslint_config == 'true'
+        run: npx eslint "js/src/**/*.{ts,tsx}" --max-warnings=0
+
+      # ---- Production build -----------------------------------
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Upload build artefact
+        if: matrix.node == '20'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: assets/studio/dist/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 4 – Frontend dependency security audit
+  # ============================================================
+  frontend-security:
+    name: Frontend Security Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assets/studio
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: assets/studio/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Audit npm dependencies for known vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: false
+
+  # ============================================================
+  # JOB 5 – Detect unimplemented TODO stubs and known bad patterns
+  # ============================================================
+  code-smell-detection:
+    name: Code Smell Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- Fail if TODO stubs are found in production code ----
+      - name: Check for TODO stubs in production PHP source
+        run: |
+          TODOS=$(grep -rn "// TODO" src/ --include="*.php" || true)
+          if [ -n "$TODOS" ]; then
+            echo "::error::Unimplemented TODO stubs found in src/:"
+            echo "$TODOS"
+            exit 1
+          fi
+          echo "No TODO stubs in PHP source."
+
+      - name: Check for TODO stubs in frontend production source
+        run: |
+          TODOS=$(grep -rn "// TODO" assets/studio/js/src/ \
+            --include="*.ts" --include="*.tsx" || true)
+          if [ -n "$TODOS" ]; then
+            echo "::error::Unimplemented TODO stubs found in frontend source:"
+            echo "$TODOS"
+            exit 1
+          fi
+          echo "No TODO stubs in frontend source."
+
+      # ---- Warn if catch(\Exception) is used ------------------
+      - name: Warn on broad exception catches
+        run: |
+          BROAD=$(grep -rn "catch (\\\Exception " src/ --include="*.php" || true)
+          if [ -n "$BROAD" ]; then
+            echo "::warning::Broad catch(\\Exception) found (see ISSUE-062):"
+            echo "$BROAD"
+          fi
+
+      # ---- Warn if sort filter is not whitelisted (heuristic) -
+      - name: Warn on unwhitelisted sort parameter usage
+        run: |
+          SORT=$(grep -n "orderBy.*\\\$filters\[.sort.\]" src/ -r \
+            --include="*.php" || true)
+          if [ -n "$SORT" ]; then
+            echo "::warning::Potentially unsafe sort column (see ISSUE-004):"
+            echo "$SORT"
+          fi
+
+      # ---- Check for missing route configuration file ---------
+      - name: Check routes configuration exists
+        run: |
+          if [ ! -f "src/Resources/config/routes.yaml" ] && \
+             [ ! -f "config/routes/studio_todo.yaml" ]; then
+            echo "::error::No routing configuration file found." \
+              "API endpoints will be unreachable (see ISSUE-001)."
+            exit 1
+          fi
+
+      # ---- Check for denyAccessUnlessGranted in controllers ---
+      - name: Warn on missing authorisation checks in controllers
+        run: |
+          MISSING=$(for f in src/Controller/Api/*.php; do
+            if ! grep -q "denyAccessUnlessGranted" "$f"; then
+              echo "$f"
+            fi
+          done)
+          if [ -n "$MISSING" ]; then
+            echo "::error::Controllers missing denyAccessUnlessGranted (ISSUE-002):"
+            echo "$MISSING"
+            exit 1
+          fi
+
+  # ============================================================
+  # JOB 6 – Documentation consistency checks
+  # ============================================================
+  documentation-check:
+    name: Documentation Consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- Verify CODE_REVIEW_ISSUES.txt exists ---------------
+      - name: Verify issue tracker file is present
+        run: |
+          if [ ! -f "CODE_REVIEW_ISSUES.txt" ]; then
+            echo "::error::CODE_REVIEW_ISSUES.txt is missing."
+            exit 1
+          fi
+          echo "Issue tracker file present."
+
+      # ---- Warn if README has unchecked realtime/i18n claims --
+      - name: Warn on feature claims marked complete in README
+        run: |
+          if grep -q "Real-time Updates" README.md && \
+             ! find src/ -name "*.php" -exec grep -l "MercureHub\|MercurePublisher\|SSE" {} \; | grep -q .; then
+            echo "::warning::README claims real-time updates (ISSUE-020) but" \
+              "no Mercure integration found in src/."
+          fi
+          if grep -qi "i18n\|multi-language" README.md && \
+             ! find src/ -name "*.xliff" -o -name "*.yaml" \
+               -path "*/translations/*" 2>/dev/null | grep -q .; then
+            echo "::warning::README claims i18n support (ISSUE-021) but" \
+              "no translation files found."
+          fi
+
+      # ---- Check that phpunit.xml.dist exists -----------------
+      - name: Check PHPUnit configuration file exists
+        run: |
+          if [ ! -f "phpunit.xml" ] && [ ! -f "phpunit.xml.dist" ]; then
+            echo "::warning::No phpunit.xml or phpunit.xml.dist found (see ISSUE-058)."
+          fi
+
+      # ---- Check tsconfig.node.json exists --------------------
+      - name: Check tsconfig.node.json exists
+        run: |
+          if [ ! -f "assets/studio/tsconfig.node.json" ]; then
+            echo "::warning::assets/studio/tsconfig.node.json is missing (see ISSUE-050)."
+          fi
