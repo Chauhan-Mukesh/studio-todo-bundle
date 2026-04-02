@@ -1,0 +1,385 @@
+<?php
+
+/**
+ * Studio Todo Bundle for Pimcore 12+
+ *
+ * @license MIT
+ * @author Mukesh Chauhan
+ */
+
+declare(strict_types=1);
+
+namespace ChauhanMukesh\StudioTodoBundle\Repository;
+
+use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
+use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Query\QueryBuilder;
+
+/**
+ * Todo Repository - Data access layer for todo items
+ *
+ * Provides methods for CRUD operations and queries
+ */
+class TodoRepository
+{
+    public function __construct(
+        private readonly Connection $connection
+    ) {
+    }
+
+    /**
+     * Find todo by ID
+     */
+    public function findById(int $id, bool $includeDeleted = false): ?TodoItem
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('id = :id')
+            ->setParameter('id', $id);
+
+        if (!$includeDeleted) {
+            $qb->andWhere('deleted_at IS NULL');
+        }
+
+        $result = $qb->executeQuery()->fetchAssociative();
+
+        return $result ? TodoItem::fromArray($result) : null;
+    }
+
+    /**
+     * Find all todos with optional filtering
+     */
+    public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
+    {
+        $qb = $this->createFilteredQuery($filters);
+        $qb->setMaxResults($limit)
+            ->setFirstResult($offset)
+            ->orderBy($filters['sort'] ?? 'created_at', $filters['order'] ?? 'DESC');
+
+        $results = $qb->executeQuery()->fetchAllAssociative();
+
+        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+    }
+
+    /**
+     * Count todos with optional filtering
+     */
+    public function count(array $filters = []): int
+    {
+        $qb = $this->createFilteredQuery($filters);
+        $qb->select('COUNT(*) as count');
+
+        return (int) $qb->executeQuery()->fetchOne();
+    }
+
+    /**
+     * Create a new todo item
+     */
+    public function create(array $data): int
+    {
+        $now = new \DateTimeImmutable();
+
+        $insertData = [
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'status' => $data['status'] ?? TodoStatus::Open->value,
+            'workflow_state' => $data['workflow_state'] ?? null,
+            'priority' => $data['priority'] ?? TodoPriority::Medium->value,
+            'related_element_id' => $data['related_element_id'] ?? null,
+            'related_element_type' => $data['related_element_type'] ?? null,
+            'related_class' => $data['related_class'] ?? null,
+            'assigned_to_user_id' => $data['assigned_to_user_id'] ?? null,
+            'created_by_user_id' => $data['created_by_user_id'] ?? null,
+            'updated_by_user_id' => $data['updated_by_user_id'] ?? null,
+            'due_date' => isset($data['due_date']) ? $this->formatDateTime($data['due_date']) : null,
+            'completed_at' => null,
+            'created_at' => $now->format('Y-m-d H:i:s'),
+            'updated_at' => $now->format('Y-m-d H:i:s'),
+            'deleted_at' => null,
+            'position' => $data['position'] ?? 0,
+            'category' => $data['category'] ?? null,
+            'meta' => isset($data['meta']) ? json_encode($data['meta']) : null,
+        ];
+
+        $this->connection->insert(Installer::TABLE_TODO_ITEMS, $insertData);
+
+        return (int) $this->connection->lastInsertId();
+    }
+
+    /**
+     * Update an existing todo item
+     */
+    public function update(int $id, array $data): bool
+    {
+        $updateData = [];
+
+        foreach (['title', 'description', 'status', 'workflow_state', 'priority',
+                  'related_element_id', 'related_element_type', 'related_class',
+                  'assigned_to_user_id', 'updated_by_user_id', 'position', 'category'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $updateData[$field] = $data[$field];
+            }
+        }
+
+        if (isset($data['due_date'])) {
+            $updateData['due_date'] = $this->formatDateTime($data['due_date']);
+        }
+
+        if (isset($data['completed_at'])) {
+            $updateData['completed_at'] = $this->formatDateTime($data['completed_at']);
+        }
+
+        if (isset($data['meta'])) {
+            $updateData['meta'] = json_encode($data['meta']);
+        }
+
+        $updateData['updated_at'] = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        $result = $this->connection->update(
+            Installer::TABLE_TODO_ITEMS,
+            $updateData,
+            ['id' => $id]
+        );
+
+        return $result > 0;
+    }
+
+    /**
+     * Soft delete a todo item
+     */
+    public function softDelete(int $id): bool
+    {
+        return $this->connection->update(
+            Installer::TABLE_TODO_ITEMS,
+            ['deleted_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s')],
+            ['id' => $id]
+        ) > 0;
+    }
+
+    /**
+     * Restore a soft-deleted todo item
+     */
+    public function restore(int $id): bool
+    {
+        return $this->connection->update(
+            Installer::TABLE_TODO_ITEMS,
+            ['deleted_at' => null],
+            ['id' => $id]
+        ) > 0;
+    }
+
+    /**
+     * Permanently delete a todo item
+     */
+    public function hardDelete(int $id): bool
+    {
+        return $this->connection->delete(
+            Installer::TABLE_TODO_ITEMS,
+            ['id' => $id]
+        ) > 0;
+    }
+
+    /**
+     * Find overdue todos
+     */
+    public function findOverdue(): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NULL')
+            ->andWhere('due_date < :now')
+            ->andWhere('status NOT IN (:closed_statuses)')
+            ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+            ->setParameter('closed_statuses', [
+                TodoStatus::Completed->value,
+                TodoStatus::Cancelled->value
+            ], Connection::PARAM_STR_ARRAY);
+
+        $results = $qb->executeQuery()->fetchAllAssociative();
+
+        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+    }
+
+    /**
+     * Find todos by user
+     */
+    public function findByUser(int $userId, ?string $status = null): array
+    {
+        $filters = [
+            'assigned_to_user_id' => $userId,
+        ];
+
+        if ($status !== null) {
+            $filters['status'] = $status;
+        }
+
+        return $this->findAll($filters);
+    }
+
+    /**
+     * Find todos by related element
+     */
+    public function findByElement(int $elementId, string $elementType): array
+    {
+        return $this->findAll([
+            'related_element_id' => $elementId,
+            'related_element_type' => $elementType,
+        ]);
+    }
+
+    /**
+     * Get statistics
+     */
+    public function getStatistics(): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select(
+            'COUNT(*) as total',
+            'SUM(CASE WHEN status = :open THEN 1 ELSE 0 END) as open',
+            'SUM(CASE WHEN status = :in_progress THEN 1 ELSE 0 END) as in_progress',
+            'SUM(CASE WHEN status = :completed THEN 1 ELSE 0 END) as completed',
+            'SUM(CASE WHEN status = :cancelled THEN 1 ELSE 0 END) as cancelled',
+            'SUM(CASE WHEN status = :on_hold THEN 1 ELSE 0 END) as on_hold',
+            'SUM(CASE WHEN due_date < :now AND status NOT IN (:closed) THEN 1 ELSE 0 END) as overdue'
+        )
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NULL')
+            ->setParameter('open', TodoStatus::Open->value)
+            ->setParameter('in_progress', TodoStatus::InProgress->value)
+            ->setParameter('completed', TodoStatus::Completed->value)
+            ->setParameter('cancelled', TodoStatus::Cancelled->value)
+            ->setParameter('on_hold', TodoStatus::OnHold->value)
+            ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+            ->setParameter('closed', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], Connection::PARAM_STR_ARRAY);
+
+        return $qb->executeQuery()->fetchAssociative();
+    }
+
+    /**
+     * Get statistics grouped by user
+     */
+    public function getStatisticsByUser(): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select(
+            'assigned_to_user_id',
+            'COUNT(*) as total',
+            'SUM(CASE WHEN status = :open THEN 1 ELSE 0 END) as open',
+            'SUM(CASE WHEN status = :in_progress THEN 1 ELSE 0 END) as in_progress',
+            'SUM(CASE WHEN status = :completed THEN 1 ELSE 0 END) as completed'
+        )
+            ->from(Installer::TABLE_TODO_ITEMS)
+            ->where('deleted_at IS NULL')
+            ->andWhere('assigned_to_user_id IS NOT NULL')
+            ->groupBy('assigned_to_user_id')
+            ->setParameter('open', TodoStatus::Open->value)
+            ->setParameter('in_progress', TodoStatus::InProgress->value)
+            ->setParameter('completed', TodoStatus::Completed->value);
+
+        return $qb->executeQuery()->fetchAllAssociative();
+    }
+
+    /**
+     * Create a filtered query builder
+     */
+    private function createFilteredQuery(array $filters): QueryBuilder
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')->from(Installer::TABLE_TODO_ITEMS);
+
+        // Exclude soft-deleted by default
+        if (!isset($filters['include_deleted']) || !$filters['include_deleted']) {
+            $qb->andWhere('deleted_at IS NULL');
+        }
+
+        // Status filter
+        if (isset($filters['status'])) {
+            $qb->andWhere('status = :status')
+                ->setParameter('status', $filters['status']);
+        }
+
+        // Priority filter
+        if (isset($filters['priority'])) {
+            $qb->andWhere('priority = :priority')
+                ->setParameter('priority', $filters['priority']);
+        }
+
+        // Assigned user filter
+        if (isset($filters['assigned_to_user_id'])) {
+            $qb->andWhere('assigned_to_user_id = :assigned_to')
+                ->setParameter('assigned_to', $filters['assigned_to_user_id']);
+        }
+
+        // Category filter
+        if (isset($filters['category'])) {
+            $qb->andWhere('category = :category')
+                ->setParameter('category', $filters['category']);
+        }
+
+        // Related element filter
+        if (isset($filters['related_element_id'])) {
+            $qb->andWhere('related_element_id = :element_id')
+                ->setParameter('element_id', $filters['related_element_id']);
+        }
+
+        if (isset($filters['related_element_type'])) {
+            $qb->andWhere('related_element_type = :element_type')
+                ->setParameter('element_type', $filters['related_element_type']);
+        }
+
+        // Date filters
+        if (isset($filters['due_before'])) {
+            $qb->andWhere('due_date < :due_before')
+                ->setParameter('due_before', $this->formatDateTime($filters['due_before']));
+        }
+
+        if (isset($filters['due_after'])) {
+            $qb->andWhere('due_date > :due_after')
+                ->setParameter('due_after', $this->formatDateTime($filters['due_after']));
+        }
+
+        // Search filter
+        if (isset($filters['search'])) {
+            $qb->andWhere('(title LIKE :search OR description LIKE :search)')
+                ->setParameter('search', '%' . $filters['search'] . '%');
+        }
+
+        // Overdue filter
+        if (isset($filters['overdue']) && $filters['overdue']) {
+            $qb->andWhere('due_date < :now')
+                ->andWhere('status NOT IN (:closed_statuses)')
+                ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+                ->setParameter('closed_statuses', [
+                    TodoStatus::Completed->value,
+                    TodoStatus::Cancelled->value
+                ], Connection::PARAM_STR_ARRAY);
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Format datetime for database storage
+     */
+    private function formatDateTime(mixed $date): ?string
+    {
+        if ($date === null) {
+            return null;
+        }
+
+        if ($date instanceof \DateTimeInterface) {
+            return $date->format('Y-m-d H:i:s');
+        }
+
+        if (is_string($date)) {
+            return (new \DateTimeImmutable($date))->format('Y-m-d H:i:s');
+        }
+
+        return null;
+    }
+}
