@@ -56,7 +56,7 @@ jobs:
             --dry-run \
             --diff \
             --config=.php-cs-fixer.php \
-            --allow-unsupported-php-version
+            --allow-unsupported-php-version=yes
         continue-on-error: false
 
       # ---- PHPStan static analysis ----------------------------
