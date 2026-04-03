@@ -12,8 +12,6 @@ declare(strict_types=1);
 namespace ChauhanMukesh\StudioTodoBundle\Tests\Unit\Repository;
 
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
 use PHPUnit\Framework\TestCase;
 
 /**

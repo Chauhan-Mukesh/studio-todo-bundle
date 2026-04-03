@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Service;
 
-use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
-use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvent;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvents;
 use ChauhanMukesh\StudioTodoBundle\Message\TodoOperationMessage;
+use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
+use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

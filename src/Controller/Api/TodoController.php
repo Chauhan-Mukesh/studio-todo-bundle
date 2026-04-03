@@ -12,8 +12,8 @@ declare(strict_types=1);
 namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
-use ChauhanMukesh\StudioTodoBundle\Service\TodoManager;
 use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
+use ChauhanMukesh\StudioTodoBundle\Service\TodoManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -98,7 +98,7 @@ class TodoController extends AbstractController
 
         return new JsonResponse([
             'success' => true,
-            'data' => array_map(fn($todo) => $todo->toArray(), $todos),
+            'data' => array_map(fn ($todo) => $todo->toArray(), $todos),
             'pagination' => [
                 'total' => $total,
                 'page' => $page,
@@ -381,7 +381,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+        $ids = array_filter(array_map('intval', $data['ids']), fn (int $id) => $id > 0);
 
         try {
             $userId = $this->getUserId();
@@ -423,7 +423,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+        $ids = array_filter(array_map('intval', $data['ids']), fn (int $id) => $id > 0);
 
         try {
             $userId = $this->getUserId();

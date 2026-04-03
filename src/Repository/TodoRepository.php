@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Repository;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 
@@ -78,7 +78,7 @@ class TodoRepository
 
         $results = $qb->executeQuery()->fetchAllAssociative();
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+        return array_map(fn ($row) => TodoItem::fromArray($row), $results);
     }
 
     /**
@@ -128,8 +128,8 @@ class TodoRepository
     /**
      * Create a new todo item
      *
-     * @return int The ID of the newly created todo
      * @throws \Doctrine\DBAL\Exception On database error
+     * @return int The ID of the newly created todo
      */
     public function create(array $data): int
     {
@@ -165,8 +165,8 @@ class TodoRepository
     /**
      * Update an existing todo item
      *
-     * @return bool True if update succeeded, false if nothing was updated
      * @throws \Doctrine\DBAL\Exception On database error
+     * @return bool True if update succeeded, false if nothing was updated
      */
     public function update(int $id, array $data): bool
     {
@@ -256,12 +256,12 @@ class TodoRepository
             ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
             ->setParameter('closed_statuses', [
                 TodoStatus::Completed->value,
-                TodoStatus::Cancelled->value
+                TodoStatus::Cancelled->value,
             ], Connection::PARAM_STR_ARRAY);
 
         $results = $qb->executeQuery()->fetchAllAssociative();
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+        return array_map(fn ($row) => TodoItem::fromArray($row), $results);
     }
 
     /**
@@ -307,7 +307,7 @@ class TodoRepository
             ->setParameter('completed', TodoStatus::Completed->value)
             ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+        return array_map(fn ($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
     }
 
     /**
@@ -324,7 +324,7 @@ class TodoRepository
             ->andWhere('deleted_at < :cutoff')
             ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+        return array_map(fn ($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
     }
 
     /**

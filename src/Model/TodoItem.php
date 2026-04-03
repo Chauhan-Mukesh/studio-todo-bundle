@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Model;
 
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 
 /**
  * Todo item value object

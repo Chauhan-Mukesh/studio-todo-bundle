@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Installer;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use Pimcore\Extension\Bundle\Installer\SettingsStoreAwareInstaller;
 use Pimcore\Model\User\Permission\Definition;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
