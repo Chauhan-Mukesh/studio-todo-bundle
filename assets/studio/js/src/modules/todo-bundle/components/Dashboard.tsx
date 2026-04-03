@@ -4,7 +4,7 @@
  * Main dashboard with statistics and todo list
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Statistic, Spin, message, theme } from 'antd';
 import {
   CheckCircleOutlined,
@@ -21,22 +21,22 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { token } = theme.useToken();
 
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const response = await todoApi.fetchStatistics();
       if (response.success && response.data) {
         setStats(response.data);
       }
-    } catch (error) {
+    } catch {
       message.error('Failed to fetch statistics');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   if (loading) {
     return (

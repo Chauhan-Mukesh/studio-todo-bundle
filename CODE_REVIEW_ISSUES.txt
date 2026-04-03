@@ -76,13 +76,12 @@ Detail: The Axios instance is created with only Content-Type headers. Pimcore
   Token or cookie-based session). Without this, all API calls will be rejected
   by Pimcore's authentication layer once ISSUE-002 is fixed.
 
-[HIGH] [OPEN] ISSUE-009: Missing Pimcore 12 bundle metadata / pimcore.yml / attributes
+[HIGH] [FIXED] ISSUE-009: Missing Pimcore 12 bundle metadata / pimcore.yml / attributes
 File : src/StudioTodoBundle.php
-Detail: Pimcore 12 recommends bundles declare themselves via the
-  #[AsPimcoreBundle] attribute (or equivalent configuration) for auto-
-  discovery features. The extra.pimcore.bundles key in composer.json is the
-  legacy Pimcore auto-registration mechanism and may not work reliably in
-  Pimcore 12 depending on the project setup.
+Fix  : Added #[AsPimcoreBundle] PHP 8 attribute (Pimcore\Extension\Bundle\Attribute\
+       AsPimcoreBundle) to the bundle class. This enables Pimcore bundle manager
+       auto-discovery in Pimcore 11+. The extra.pimcore.bundles key in composer.json
+       is retained for compatibility with Composer-based registration.
 
 [HIGH] [FIXED] ISSUE-010: Double event dispatch on complete() – UPDATED fired twice
 File : src/Service/TodoManager.php
@@ -680,6 +679,32 @@ ISSUE-065   | MEDIUM    | FIXED  – asyncEnabled cached in constructor property
 ISSUE-066   | LOW       | FIXED  – No boolean == comparisons found (already clean)
 ISSUE-067   | LOW       | FIXED  – Magic number 10000 already removed (SQL GROUP BY)
 ISSUE-071   | MEDIUM    | FIXED  – Hard-delete API endpoint added (Admin only)
+
+Session 4 fixes (2026-04-03, Copilot Task Agent):
+ISSUE-009   | HIGH      | FIXED  – #[AsPimcoreBundle] attribute added to StudioTodoBundle.php
+Browser/1   | HIGH      | FIXED  – useMercureSSE: new URL(hubUrl) crash on relative paths fixed
+                                    (use new URL(hubUrl, window.location.href) as base)
+Browser/2   | HIGH      | FIXED  – useMercureSSE: stale-closure bug in useCallback(fn, [])
+                                    replaced with useRef pattern; EventSource only reopened
+                                    when hubUrl/topic change
+Browser/3   | HIGH      | FIXED  – TodoList.tsx: unused DatePicker import removed (broke TS build
+                                    due to noUnusedLocals:true)
+Browser/4   | MEDIUM    | FIXED  – TodoList.tsx / Dashboard.tsx: all unused catch-bound 'error'
+                                    variables removed (optional catch binding, ES2019+)
+Browser/5   | MEDIUM    | FIXED  – TodoList.tsx: useCallback missing-dependency warning for
+                                    pagination; destructured currentPage/pageSize outside hook
+Browser/6   | MEDIUM    | FIXED  – Dashboard.tsx: fetchStatistics wrapped in useCallback and
+                                    added to useEffect dependency array
+Browser/7   | LOW       | FIXED  – types/index.ts: Record<string,any> replaced with
+                                    Record<string,unknown> (no-explicit-any ESLint warnings)
+
+Remaining open issues: 5 (all MEDIUM/LOW)
+Open: ISSUE-026 (OpenAPI spec), ISSUE-068 (Studio UI nav integration),
+      ISSUE-069 (notification service), ISSUE-070 (workflow integration),
+      ISSUE-072 (database migrations)
+Note: ISSUE-068/069/070/072 require significant feature implementation beyond
+      bug-fix scope (Studio UI SDK integration, mailer service, Symfony Workflow,
+      Doctrine Migrations). ISSUE-026 requires an OpenAPI specification document.
 
 ================================================================================
 END OF REPORT

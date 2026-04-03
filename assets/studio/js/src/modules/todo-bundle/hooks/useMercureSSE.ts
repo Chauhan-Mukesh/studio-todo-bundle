@@ -4,7 +4,7 @@
  * Subscribes to live todo updates via Server-Sent Events
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type MercureEvent = {
   event: 'created' | 'updated' | 'deleted' | 'completed' | 'restored';
@@ -20,14 +20,36 @@ type MercureOptions = {
 };
 
 /**
- * Subscribe to a Mercure hub topic for real-time updates
+ * Subscribe to a Mercure hub topic for real-time updates.
+ *
+ * Uses refs to hold the latest callbacks so the EventSource is only
+ * opened/closed when hubUrl or topic changes, not on every render.
+ * Supports both absolute URLs and relative paths (e.g. /.well-known/mercure).
  */
 export function useMercureSSE({ hubUrl, topic, onMessage, onError }: MercureOptions): void {
-  const stableOnMessage = useCallback(onMessage, []);
-  const stableOnError = useCallback(onError ?? (() => {}), []);
+  // Keep callback refs up-to-date on every render so the effect never
+  // captures a stale closure without needing to re-open the EventSource.
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    const url = new URL(hubUrl);
+    onMessageRef.current = onMessage;
+  });
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  });
+
+  useEffect(() => {
+    let url: URL;
+    try {
+      // new URL() requires an absolute URL; use location.href as base so that
+      // relative paths like '/.well-known/mercure' are resolved correctly.
+      url = new URL(hubUrl, window.location.href);
+    } catch {
+      console.error('useMercureSSE: invalid hub URL', hubUrl);
+      return;
+    }
     url.searchParams.append('topic', topic);
 
     const eventSource = new EventSource(url.toString(), { withCredentials: true });
@@ -35,19 +57,23 @@ export function useMercureSSE({ hubUrl, topic, onMessage, onError }: MercureOpti
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as MercureEvent;
-        stableOnMessage(data);
+        onMessageRef.current(data);
       } catch {
         // Ignore unparseable messages
       }
     };
 
+    const handleError = (event: Event) => {
+      onErrorRef.current?.(event);
+    };
+
     eventSource.addEventListener('message', handleMessage);
-    eventSource.addEventListener('error', stableOnError);
+    eventSource.addEventListener('error', handleError);
 
     return () => {
       eventSource.removeEventListener('message', handleMessage);
-      eventSource.removeEventListener('error', stableOnError);
+      eventSource.removeEventListener('error', handleError);
       eventSource.close();
     };
-  }, [hubUrl, topic, stableOnMessage, stableOnError]);
+  }, [hubUrl, topic]);
 }

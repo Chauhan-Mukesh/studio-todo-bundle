@@ -37,7 +37,7 @@ export interface TodoItem {
   deleted_at: string | null;
   position: number;
   category: string | null;
-  meta: Record<string, any> | null;
+  meta: Record<string, unknown> | null;
   is_overdue: boolean;
 }
 
@@ -62,7 +62,7 @@ export interface TodoCreateData {
   category?: string;
   related_element_id?: number;
   related_element_type?: string;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 }
 
 export interface TodoUpdateData extends Partial<TodoCreateData> {
