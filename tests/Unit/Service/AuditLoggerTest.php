@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Tests\Unit\Service;
 
-use ChauhanMukesh\StudioTodoBundle\Service\AuditLogger;
 use ChauhanMukesh\StudioTodoBundle\Repository\AuditRepository;
-use PHPUnit\Framework\TestCase;
+use ChauhanMukesh\StudioTodoBundle\Service\AuditLogger;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
 
 class AuditLoggerTest extends TestCase
 {

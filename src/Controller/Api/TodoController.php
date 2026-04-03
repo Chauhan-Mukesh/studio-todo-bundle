@@ -13,7 +13,7 @@ namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
 use ChauhanMukesh\StudioTodoBundle\Service\TodoManager;
-use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
+use Pimcore\Model\User as PimcoreUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,8 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class TodoController extends AbstractController
 {
     public function __construct(
-        private readonly TodoManager $todoManager,
-        private readonly TodoRepository $repository
+        private readonly TodoManager $todoManager
     ) {
     }
 
@@ -98,7 +97,7 @@ class TodoController extends AbstractController
 
         return new JsonResponse([
             'success' => true,
-            'data' => array_map(fn($todo) => $todo->toArray(), $todos),
+            'data' => array_map(fn ($todo) => $todo->toArray(), $todos),
             'pagination' => [
                 'total' => $total,
                 'page' => $page,
@@ -381,7 +380,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+        $ids = array_filter(array_map('intval', $data['ids']), fn (int $id) => $id > 0);
 
         try {
             $userId = $this->getUserId();
@@ -423,7 +422,7 @@ class TodoController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $ids = array_filter(array_map('intval', $data['ids']), fn(int $id) => $id > 0);
+        $ids = array_filter(array_map('intval', $data['ids']), fn (int $id) => $id > 0);
 
         try {
             $userId = $this->getUserId();
@@ -486,6 +485,10 @@ class TodoController extends AbstractController
     private function getUserId(): ?int
     {
         $user = $this->getUser();
-        return $user ? $user->getId() : null;
+        // @phpstan-ignore-next-line instanceof check works at runtime (Pimcore User implements UserInterface)
+        if ($user instanceof PimcoreUser) {
+            return $user->getId();
+        }
+        return null;
     }
 }

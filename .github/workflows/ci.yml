@@ -55,9 +55,8 @@ jobs:
           vendor/bin/php-cs-fixer fix \
             --dry-run \
             --diff \
-            --rules='@PSR12,@PHP83Migration' \
-            --path-mode=intersection \
-            src/ tests/
+            --config=.php-cs-fixer.php \
+            --allow-unsupported-php-version=yes
         continue-on-error: false
 
       # ---- PHPStan static analysis ----------------------------

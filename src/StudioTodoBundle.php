@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle;
 
+use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
 use Doctrine\DBAL\Connection;
 use Pimcore\Extension\Bundle\AbstractPimcoreBundle;
 use Pimcore\Extension\Bundle\Attribute\AsPimcoreBundle;
 use Pimcore\Extension\Bundle\Traits\PackageVersionTrait;
-use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
 
 /**
  * Main bundle class for Studio Todo Bundle

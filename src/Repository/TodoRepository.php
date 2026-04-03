@@ -11,10 +11,11 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Repository;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 
@@ -61,6 +62,7 @@ class TodoRepository
     /**
      * Find all todos with optional filtering
      *
+     * @param array<string, mixed> $filters
      * @return TodoItem[]
      */
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
@@ -78,11 +80,13 @@ class TodoRepository
 
         $results = $qb->executeQuery()->fetchAllAssociative();
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+        return array_map(fn ($row) => TodoItem::fromArray($row), $results);
     }
 
     /**
      * Count todos with optional filtering
+     *
+     * @param array<string, mixed> $filters
      */
     public function count(array $filters = []): int
     {
@@ -114,7 +118,7 @@ class TodoRepository
             $qb->andWhere('due_date < :now')
                 ->andWhere('status NOT IN (:closed_statuses)')
                 ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
-                ->setParameter('closed_statuses', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], Connection::PARAM_STR_ARRAY);
+                ->setParameter('closed_statuses', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], ArrayParameterType::STRING);
         }
 
         if (isset($filters['search'])) {
@@ -128,8 +132,9 @@ class TodoRepository
     /**
      * Create a new todo item
      *
-     * @return int The ID of the newly created todo
+     * @param array<string, mixed> $data
      * @throws \Doctrine\DBAL\Exception On database error
+     * @return int The ID of the newly created todo
      */
     public function create(array $data): int
     {
@@ -165,8 +170,9 @@ class TodoRepository
     /**
      * Update an existing todo item
      *
-     * @return bool True if update succeeded, false if nothing was updated
+     * @param array<string, mixed> $data
      * @throws \Doctrine\DBAL\Exception On database error
+     * @return bool True if update succeeded, false if nothing was updated
      */
     public function update(int $id, array $data): bool
     {
@@ -244,6 +250,8 @@ class TodoRepository
 
     /**
      * Find overdue todos
+     *
+     * @return TodoItem[]
      */
     public function findOverdue(): array
     {
@@ -256,16 +264,18 @@ class TodoRepository
             ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
             ->setParameter('closed_statuses', [
                 TodoStatus::Completed->value,
-                TodoStatus::Cancelled->value
-            ], Connection::PARAM_STR_ARRAY);
+                TodoStatus::Cancelled->value,
+            ], ArrayParameterType::STRING);
 
         $results = $qb->executeQuery()->fetchAllAssociative();
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $results);
+        return array_map(fn ($row) => TodoItem::fromArray($row), $results);
     }
 
     /**
      * Find todos by user
+     *
+     * @return TodoItem[]
      */
     public function findByUser(int $userId, ?string $status = null): array
     {
@@ -282,6 +292,8 @@ class TodoRepository
 
     /**
      * Find todos by related element
+     *
+     * @return TodoItem[]
      */
     public function findByElement(int $elementId, string $elementType): array
     {
@@ -307,7 +319,7 @@ class TodoRepository
             ->setParameter('completed', TodoStatus::Completed->value)
             ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+        return array_map(fn ($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
     }
 
     /**
@@ -324,7 +336,7 @@ class TodoRepository
             ->andWhere('deleted_at < :cutoff')
             ->setParameter('cutoff', $cutoff->format('Y-m-d H:i:s'));
 
-        return array_map(fn($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
+        return array_map(fn ($row) => TodoItem::fromArray($row), $qb->executeQuery()->fetchAllAssociative());
     }
 
     /**
@@ -345,7 +357,7 @@ class TodoRepository
             ->where('id IN (:ids)')
             ->andWhere('deleted_at IS NULL')
             ->setParameter('deleted_at', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
-            ->setParameter('ids', $ids, Connection::PARAM_INT_ARRAY);
+            ->setParameter('ids', $ids, ArrayParameterType::INTEGER);
 
         return (int) $qb->executeStatement();
     }
@@ -354,6 +366,7 @@ class TodoRepository
      * Batch update a field for todos by IDs
      *
      * @param int[] $ids
+     * @param array<string, mixed> $data
      * @return int Number of records affected
      */
     public function batchUpdate(array $ids, array $data): int
@@ -365,7 +378,7 @@ class TodoRepository
         $qb = $this->connection->createQueryBuilder();
         $qb->update(Installer::TABLE_TODO_ITEMS)
             ->where('id IN (:ids)')
-            ->setParameter('ids', $ids, Connection::PARAM_INT_ARRAY);
+            ->setParameter('ids', $ids, ArrayParameterType::INTEGER);
 
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $qb->set('updated_at', ':updated_at')->setParameter('updated_at', $now);
@@ -381,6 +394,8 @@ class TodoRepository
 
     /**
      * Get statistics
+     *
+     * @return array<string, mixed>
      */
     public function getStatistics(): array
     {
@@ -402,13 +417,15 @@ class TodoRepository
             ->setParameter('cancelled', TodoStatus::Cancelled->value)
             ->setParameter('on_hold', TodoStatus::OnHold->value)
             ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
-            ->setParameter('closed', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], Connection::PARAM_STR_ARRAY);
+            ->setParameter('closed', [TodoStatus::Completed->value, TodoStatus::Cancelled->value], ArrayParameterType::STRING);
 
         return $qb->executeQuery()->fetchAssociative();
     }
 
     /**
      * Get statistics grouped by category using a SQL GROUP BY query
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByCategory(): array
     {
@@ -427,6 +444,8 @@ class TodoRepository
 
     /**
      * Get statistics grouped by user
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByUser(): array
     {
@@ -451,6 +470,8 @@ class TodoRepository
 
     /**
      * Create a filtered query builder
+     *
+     * @param array<string, mixed> $filters
      */
     private function createFilteredQuery(array $filters): QueryBuilder
     {
@@ -474,6 +495,7 @@ class TodoRepository
         return $qb;
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyStatusFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['status'])) {
@@ -481,6 +503,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyPriorityFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['priority'])) {
@@ -488,6 +511,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyAssignedToFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['assigned_to_user_id'])) {
@@ -496,6 +520,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyCategoryFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['category'])) {
@@ -503,6 +528,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyRelatedElementFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['related_element_id'])) {
@@ -516,6 +542,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyDueDateFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['due_before'])) {
@@ -529,6 +556,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applySearchFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['search'])) {
@@ -538,6 +566,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyOverdueFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['overdue']) && $filters['overdue']) {
@@ -547,7 +576,7 @@ class TodoRepository
                 ->setParameter('closed_statuses', [
                     TodoStatus::Completed->value,
                     TodoStatus::Cancelled->value,
-                ], Connection::PARAM_STR_ARRAY);
+                ], ArrayParameterType::STRING);
         }
     }
 

@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace ChauhanMukesh\StudioTodoBundle\EventListener;
 
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvent;
-use ChauhanMukesh\StudioTodoBundle\Service\AuditLogger;
 use ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher;
 use Psr\Log\LoggerInterface;
 
@@ -24,7 +23,6 @@ use Psr\Log\LoggerInterface;
 class TodoEventListener
 {
     public function __construct(
-        private readonly AuditLogger $auditLogger,
         private readonly ?LoggerInterface $logger = null,
         private readonly ?MercurePublisher $mercurePublisher = null
     ) {

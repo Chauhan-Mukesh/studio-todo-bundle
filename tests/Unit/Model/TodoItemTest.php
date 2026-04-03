@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Tests\Unit\Model;
 
-use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
+use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
 use PHPUnit\Framework\TestCase;
 
 class TodoItemTest extends TestCase

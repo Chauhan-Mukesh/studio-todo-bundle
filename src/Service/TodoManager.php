@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Service;
 
-use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
-use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvent;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvents;
 use ChauhanMukesh\StudioTodoBundle\Message\TodoOperationMessage;
+use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
+use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -29,6 +29,9 @@ class TodoManager
 {
     private readonly bool $asyncEnabled;
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(
         private readonly TodoRepository $repository,
         private readonly AuditLogger $auditLogger,
@@ -41,6 +44,8 @@ class TodoManager
 
     /**
      * Create a new todo
+     *
+     * @param array<string, mixed> $data
      */
     public function create(array $data, ?int $userId = null): int
     {
@@ -75,6 +80,8 @@ class TodoManager
 
     /**
      * Update a todo
+     *
+     * @param array<string, mixed> $data
      */
     public function update(int $id, array $data, ?int $userId = null): bool
     {
@@ -260,6 +267,9 @@ class TodoManager
 
     /**
      * Find all todos with filters
+     *
+     * @param array<string, mixed> $filters
+     * @return TodoItem[]
      */
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
     {
@@ -268,6 +278,8 @@ class TodoManager
 
     /**
      * Count todos with filters
+     *
+     * @param array<string, mixed> $filters
      */
     public function count(array $filters = []): int
     {
@@ -276,6 +288,8 @@ class TodoManager
 
     /**
      * Find overdue todos
+     *
+     * @return TodoItem[]
      */
     public function findOverdue(): array
     {
@@ -284,6 +298,8 @@ class TodoManager
 
     /**
      * Find todos by user
+     *
+     * @return TodoItem[]
      */
     public function findByUser(int $userId, ?string $status = null): array
     {
@@ -292,6 +308,8 @@ class TodoManager
 
     /**
      * Find todos by related element
+     *
+     * @return TodoItem[]
      */
     public function findByElement(int $elementId, string $elementType): array
     {
@@ -321,6 +339,9 @@ class TodoManager
 
     /**
      * Bulk update todos
+     *
+     * @param int[] $ids
+     * @param array<string, mixed> $data
      */
     public function bulkUpdate(array $ids, array $data, ?int $userId = null): int
     {
@@ -333,6 +354,8 @@ class TodoManager
 
     /**
      * Bulk delete todos
+     *
+     * @param int[] $ids
      */
     public function bulkDelete(array $ids, ?int $userId = null): int
     {
@@ -344,6 +367,9 @@ class TodoManager
 
     /**
      * Apply default values from configuration
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
      */
     private function applyDefaults(array $data): array
     {

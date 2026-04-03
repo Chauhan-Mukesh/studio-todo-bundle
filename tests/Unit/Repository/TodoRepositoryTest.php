@@ -12,8 +12,6 @@ declare(strict_types=1);
 namespace ChauhanMukesh\StudioTodoBundle\Tests\Unit\Repository;
 
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoPriority;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -92,6 +90,10 @@ class TodoRepositoryTest extends TestCase
         $this->assertTrue($item->isDeleted());
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
     private function getBaseData(array $overrides = []): array
     {
         return array_merge([

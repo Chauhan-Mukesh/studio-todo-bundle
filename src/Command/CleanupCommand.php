@@ -29,6 +29,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class CleanupCommand extends Command
 {
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(
         private readonly TodoRepository $repository,
         private readonly TodoManager $todoManager,
