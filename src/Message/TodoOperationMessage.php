@@ -18,6 +18,9 @@ namespace ChauhanMukesh\StudioTodoBundle\Message;
  */
 class TodoOperationMessage
 {
+    /**
+     * @param array<string, mixed> $data
+     */
     public function __construct(
         public readonly string $operation,
         public readonly int $todoId,

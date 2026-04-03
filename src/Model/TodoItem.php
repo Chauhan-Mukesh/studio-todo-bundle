@@ -41,6 +41,7 @@ readonly class TodoItem
         public ?\DateTimeImmutable $deletedAt,
         public int $position,
         public ?string $category,
+        /** @var array<string, mixed>|null */
         public ?array $meta,
     ) {
     }
@@ -67,6 +68,8 @@ readonly class TodoItem
 
     /**
      * Convert to array for API responses
+     *
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {
@@ -97,6 +100,8 @@ readonly class TodoItem
 
     /**
      * Create from database row
+     *
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

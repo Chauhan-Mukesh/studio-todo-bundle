@@ -61,6 +61,7 @@ class TodoRepository
     /**
      * Find all todos with optional filtering
      *
+     * @param array<string, mixed> $filters
      * @return TodoItem[]
      */
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
@@ -83,6 +84,8 @@ class TodoRepository
 
     /**
      * Count todos with optional filtering
+     *
+     * @param array<string, mixed> $filters
      */
     public function count(array $filters = []): int
     {
@@ -128,6 +131,7 @@ class TodoRepository
     /**
      * Create a new todo item
      *
+     * @param array<string, mixed> $data
      * @throws \Doctrine\DBAL\Exception On database error
      * @return int The ID of the newly created todo
      */
@@ -165,6 +169,7 @@ class TodoRepository
     /**
      * Update an existing todo item
      *
+     * @param array<string, mixed> $data
      * @throws \Doctrine\DBAL\Exception On database error
      * @return bool True if update succeeded, false if nothing was updated
      */
@@ -354,6 +359,7 @@ class TodoRepository
      * Batch update a field for todos by IDs
      *
      * @param int[] $ids
+     * @param array<string, mixed> $data
      * @return int Number of records affected
      */
     public function batchUpdate(array $ids, array $data): int
@@ -381,6 +387,8 @@ class TodoRepository
 
     /**
      * Get statistics
+     *
+     * @return array<string, mixed>
      */
     public function getStatistics(): array
     {
@@ -409,6 +417,8 @@ class TodoRepository
 
     /**
      * Get statistics grouped by category using a SQL GROUP BY query
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByCategory(): array
     {
@@ -427,6 +437,8 @@ class TodoRepository
 
     /**
      * Get statistics grouped by user
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByUser(): array
     {
@@ -451,6 +463,8 @@ class TodoRepository
 
     /**
      * Create a filtered query builder
+     *
+     * @param array<string, mixed> $filters
      */
     private function createFilteredQuery(array $filters): QueryBuilder
     {
@@ -474,6 +488,7 @@ class TodoRepository
         return $qb;
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyStatusFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['status'])) {
@@ -481,6 +496,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyPriorityFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['priority'])) {
@@ -488,6 +504,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyAssignedToFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['assigned_to_user_id'])) {
@@ -496,6 +513,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyCategoryFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['category'])) {
@@ -503,6 +521,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyRelatedElementFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['related_element_id'])) {
@@ -516,6 +535,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyDueDateFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['due_before'])) {
@@ -529,6 +549,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applySearchFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['search'])) {
@@ -538,6 +559,7 @@ class TodoRepository
         }
     }
 
+    /** @param array<string, mixed> $filters */
     private function applyOverdueFilter(QueryBuilder $qb, array $filters): void
     {
         if (isset($filters['overdue']) && $filters['overdue']) {

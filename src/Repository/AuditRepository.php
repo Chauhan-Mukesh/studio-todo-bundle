@@ -54,6 +54,8 @@ class AuditRepository
 
     /**
      * Get audit log for a specific todo
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getByTodoId(int $todoId, int $limit = 100, int $offset = 0): array
     {
@@ -71,6 +73,9 @@ class AuditRepository
 
     /**
      * Get all audit entries with optional filtering
+     *
+     * @param array<string, mixed> $filters
+     * @return array<int, array<string, mixed>>
      */
     public function findAll(array $filters = [], int $limit = 100, int $offset = 0): array
     {
@@ -124,6 +129,8 @@ class AuditRepository
 
     /**
      * Count audit entries
+     *
+     * @param array<string, mixed> $filters
      */
     public function count(array $filters = []): int
     {

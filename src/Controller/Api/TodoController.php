@@ -12,8 +12,8 @@ declare(strict_types=1);
 namespace ChauhanMukesh\StudioTodoBundle\Controller\Api;
 
 use ChauhanMukesh\StudioTodoBundle\Enum\TodoPermission;
-use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
 use ChauhanMukesh\StudioTodoBundle\Service\TodoManager;
+use Pimcore\Model\User as PimcoreUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,8 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class TodoController extends AbstractController
 {
     public function __construct(
-        private readonly TodoManager $todoManager,
-        private readonly TodoRepository $repository
+        private readonly TodoManager $todoManager
     ) {
     }
 
@@ -486,6 +485,9 @@ class TodoController extends AbstractController
     private function getUserId(): ?int
     {
         $user = $this->getUser();
-        return $user ? $user->getId() : null;
+        if ($user instanceof PimcoreUser) {
+            return $user->getId();
+        }
+        return null;
     }
 }

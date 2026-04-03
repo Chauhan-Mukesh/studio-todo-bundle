@@ -188,6 +188,7 @@ class Installer extends SettingsStoreAwareInstaller
         foreach (TodoPermission::cases() as $permission) {
             $def = Definition::getByKey($permission->value);
             if ($def !== null) {
+                // @phpstan-ignore-next-line - delete() is defined on Pimcore's base model
                 $def->delete();
             }
         }

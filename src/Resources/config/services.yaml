@@ -45,7 +45,6 @@ services:
     ChauhanMukesh\StudioTodoBundle\Controller\Api\TodoController:
         arguments:
             $todoManager: '@ChauhanMukesh\StudioTodoBundle\Service\TodoManager'
-            $repository: '@ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository'
         tags: ['controller.service_arguments']
         public: true
 
@@ -87,7 +86,6 @@ services:
     # Event Listeners
     ChauhanMukesh\StudioTodoBundle\EventListener\TodoEventListener:
         arguments:
-            $auditLogger: '@ChauhanMukesh\StudioTodoBundle\Service\AuditLogger'
             $mercurePublisher: '@?ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher'
         tags:
             - { name: kernel.event_listener, event: studio_todo.created, method: onTodoCreated }

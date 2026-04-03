@@ -20,6 +20,9 @@ use ChauhanMukesh\StudioTodoBundle\Repository\AuditRepository;
  */
 class AuditLogger
 {
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(
         private readonly AuditRepository $repository,
         private readonly array $config
@@ -28,6 +31,8 @@ class AuditLogger
 
     /**
      * Log a create action
+     *
+     * @param array<string, mixed> $data
      */
     public function logCreate(int $todoId, array $data, ?int $userId = null): void
     {
@@ -58,6 +63,9 @@ class AuditLogger
 
     /**
      * Log an update action
+     *
+     * @param array<string, mixed> $oldData
+     * @param array<string, mixed> $newData
      */
     public function logUpdate(int $todoId, array $oldData, array $newData, ?int $userId = null): void
     {
@@ -163,6 +171,8 @@ class AuditLogger
 
     /**
      * Get audit history for a todo
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getHistory(int $todoId, int $limit = 100, int $offset = 0): array
     {
