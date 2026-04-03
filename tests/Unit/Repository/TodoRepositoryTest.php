@@ -90,6 +90,10 @@ class TodoRepositoryTest extends TestCase
         $this->assertTrue($item->isDeleted());
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
     private function getBaseData(array $overrides = []): array
     {
         return array_merge([

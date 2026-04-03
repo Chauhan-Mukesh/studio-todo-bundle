@@ -8,3 +8,7 @@ parameters:
         # When it is not installed these classes are unavailable; suppress PHPStan's false positives.
         - message: '#Symfony\\Component\\Mercure\\#'
           path: src/Service/MercurePublisher.php
+        # Pimcore\Extension\Bundle\Attribute\AsPimcoreBundle requires Pimcore stubs which are not
+        # installed in CI dev-dependencies. The class exists at runtime in Pimcore 11+.
+        - message: '#Attribute class Pimcore\\Extension\\Bundle\\Attribute\\AsPimcoreBundle does not exist#'
+          path: src/StudioTodoBundle.php

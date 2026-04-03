@@ -288,6 +288,8 @@ class TodoManager
 
     /**
      * Find overdue todos
+     *
+     * @return TodoItem[]
      */
     public function findOverdue(): array
     {
@@ -296,6 +298,8 @@ class TodoManager
 
     /**
      * Find todos by user
+     *
+     * @return TodoItem[]
      */
     public function findByUser(int $userId, ?string $status = null): array
     {
@@ -304,6 +308,8 @@ class TodoManager
 
     /**
      * Find todos by related element
+     *
+     * @return TodoItem[]
      */
     public function findByElement(int $elementId, string $elementType): array
     {
