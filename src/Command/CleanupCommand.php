@@ -40,6 +40,9 @@ class CleanupCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Configure available cleanup options including days threshold and dry-run mode
+     */
     protected function configure(): void
     {
         $this
@@ -47,6 +50,9 @@ class CleanupCommand extends Command
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be deleted without actually deleting');
     }
 
+    /**
+     * Execute the cleanup: permanently remove old completed and soft-deleted todos
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);

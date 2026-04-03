@@ -26,11 +26,13 @@ use Doctrine\DBAL\Query\QueryBuilder;
  */
 class TodoRepository
 {
+    /** Column names that are permitted as ORDER BY targets to prevent SQL injection */
     private const ALLOWED_SORT_COLUMNS = [
         'created_at', 'updated_at', 'title', 'status', 'priority',
         'due_date', 'position', 'category', 'assigned_to_user_id',
     ];
 
+    /** Maximum character length accepted for full-text search values */
     private const SEARCH_MAX_LENGTH = 200;
     public function __construct(
         private readonly Connection $connection
@@ -40,6 +42,7 @@ class TodoRepository
     /**
      * Find todo by ID
      *
+     * @param bool $includeDeleted When true, soft-deleted items are also returned
      * @return TodoItem|null The todo item or null if not found
      */
     public function findById(int $id, bool $includeDeleted = false): ?TodoItem

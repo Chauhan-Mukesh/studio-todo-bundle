@@ -35,6 +35,9 @@ class ListCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Configure available filter and display options
+     */
     protected function configure(): void
     {
         $this
@@ -46,6 +49,9 @@ class ListCommand extends Command
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit number of results', 20);
     }
 
+    /**
+     * Execute the command: query the repository and render the results table
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
@@ -107,6 +113,9 @@ class ListCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * Truncate a string to at most $length characters, appending "..." if needed
+     */
     private function truncate(string $text, int $length): string
     {
         if (strlen($text) <= $length) {

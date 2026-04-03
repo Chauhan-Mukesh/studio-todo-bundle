@@ -34,6 +34,9 @@ class StatsCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Execute the command: display overall, by-priority, and by-user statistics tables
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);

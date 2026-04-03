@@ -129,6 +129,9 @@ readonly class TodoItem
         );
     }
 
+    /**
+     * Parse a date string into a DateTimeImmutable, returning null on failure
+     */
     private static function parseDateSafely(string $date): ?\DateTimeImmutable
     {
         try {
