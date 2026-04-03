@@ -4,7 +4,7 @@
  * Main component for displaying and managing todos
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -16,8 +16,9 @@ import {
   Select,
   message,
   Dropdown,
-  MenuProps,
+  theme,
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -27,9 +28,9 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { theme } from 'antd';
 import todoApi from '../services/todoApi';
-import type { TodoItem, TodoFilters, TodoStatus, TodoPriority, TodoUpdateData, TodoCreateData } from '../types';
+import type { TodoItem, TodoFilters, TodoUpdateData, TodoCreateData } from '../types';
+import { TodoStatus, TodoPriority } from '../types';
 import { useMercureSSE } from '../hooks/useMercureSSE';
 
 const { Search } = Input;
@@ -37,7 +38,34 @@ const { Option } = Select;
 
 const mercureHubUrl = (window as Window & { MERCURE_HUB_URL?: string }).MERCURE_HUB_URL ?? '/.well-known/mercure';
 
-const TodoList: React.FC = () => {
+// Pure helpers – defined outside the component so they are never re-created
+const getStatusColor = (status: TodoStatus): string => {
+  const colors: Record<TodoStatus, string> = {
+    [TodoStatus.Open]: 'blue',
+    [TodoStatus.InProgress]: 'orange',
+    [TodoStatus.Completed]: 'green',
+    [TodoStatus.Cancelled]: 'red',
+    [TodoStatus.OnHold]: 'gray',
+  };
+  return colors[status] ?? 'default';
+};
+
+const getPriorityColor = (priority: TodoPriority): string => {
+  const colors: Record<TodoPriority, string> = {
+    [TodoPriority.Low]: 'green',
+    [TodoPriority.Medium]: 'blue',
+    [TodoPriority.High]: 'orange',
+    [TodoPriority.Critical]: 'red',
+  };
+  return colors[priority] ?? 'default';
+};
+
+interface TodoListProps {
+  /** Called after every successful mutation so the parent can refresh derived data (e.g. stats). */
+  onMutation?: () => void;
+}
+
+const TodoList: React.FC<TodoListProps> = ({ onMutation }) => {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { token } = theme.useToken();
@@ -89,16 +117,24 @@ const TodoList: React.FC = () => {
     fetchTodos();
   }, [fetchTodos]);
 
+  // Update a filter key and reset to page 1 so results are never out of range
+  const handleFilterChange = useCallback((update: Partial<TodoFilters>) => {
+    setFilters((prev) => ({ ...prev, ...update }));
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  }, []);
+
+  const handleMercureMessage = useCallback(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+
   useMercureSSE({
     hubUrl: mercureHubUrl,
     topic: 'studio-todo/todos',
-    onMessage: () => {
-      fetchTodos();
-    },
+    onMessage: handleMercureMessage,
   });
 
   // Handle delete
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback((id: number) => {
     Modal.confirm({
       title: 'Delete Todo',
       content: 'Are you sure you want to delete this todo?',
@@ -109,26 +145,28 @@ const TodoList: React.FC = () => {
           await todoApi.deleteTodo(id);
           message.success('Todo deleted successfully');
           fetchTodos();
+          onMutation?.();
         } catch {
           message.error('Failed to delete todo');
         }
       },
     });
-  };
+  }, [fetchTodos, onMutation]);
 
   // Handle complete
-  const handleComplete = async (id: number) => {
+  const handleComplete = useCallback(async (id: number) => {
     try {
       await todoApi.completeTodo(id);
       message.success('Todo completed successfully');
       fetchTodos();
+      onMutation?.();
     } catch {
       message.error('Failed to complete todo');
     }
-  };
+  }, [fetchTodos, onMutation]);
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     if (selectedRowKeys.length === 0) return;
 
     Modal.confirm({
@@ -138,19 +176,20 @@ const TodoList: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          await todoApi.bulkDelete(selectedRowKeys as number[]);
+          await todoApi.bulkDelete(selectedRowKeys.map(Number));
           message.success(`Successfully deleted ${selectedRowKeys.length} todos`);
           setSelectedRowKeys([]);
           fetchTodos();
+          onMutation?.();
         } catch {
           message.error('Failed to bulk delete todos');
         }
       },
     });
-  };
+  }, [selectedRowKeys, fetchTodos, onMutation]);
 
   // Open edit modal
-  const handleEdit = (todo: TodoItem) => {
+  const handleEdit = useCallback((todo: TodoItem) => {
     setEditingTodo(todo);
     editForm.setFieldsValue({
       title: todo.title,
@@ -160,63 +199,54 @@ const TodoList: React.FC = () => {
       category: todo.category,
     });
     setEditModalVisible(true);
-  };
+  }, [editForm]);
 
   // Submit edit modal
-  const handleEditSubmit = async () => {
+  const handleEditSubmit = useCallback(async () => {
     if (!editingTodo) return;
+    let values: Partial<TodoUpdateData>;
     try {
-      const values = await editForm.validateFields();
-      await todoApi.updateTodo(editingTodo.id, values as Partial<TodoUpdateData>);
+      values = await editForm.validateFields();
+    } catch {
+      // Form validation failed – inline errors are shown by Ant Design; nothing else to do
+      return;
+    }
+    try {
+      await todoApi.updateTodo(editingTodo.id, values);
       message.success('Todo updated successfully');
       setEditModalVisible(false);
       setEditingTodo(null);
       editForm.resetFields();
       fetchTodos();
+      onMutation?.();
     } catch {
       message.error('Failed to update todo');
     }
-  };
+  }, [editingTodo, editForm, fetchTodos, onMutation]);
 
   // Submit create modal
-  const handleCreateSubmit = async () => {
+  const handleCreateSubmit = useCallback(async () => {
+    let values: TodoCreateData;
     try {
-      const values = await createForm.validateFields();
-      await todoApi.createTodo(values as TodoCreateData);
+      values = await createForm.validateFields();
+    } catch {
+      // Form validation failed – inline errors are shown by Ant Design; nothing else to do
+      return;
+    }
+    try {
+      await todoApi.createTodo(values);
       message.success('Todo created successfully');
       setCreateModalVisible(false);
       createForm.resetFields();
       fetchTodos();
+      onMutation?.();
     } catch {
       message.error('Failed to create todo');
     }
-  };
+  }, [createForm, fetchTodos, onMutation]);
 
-  // Get status color
-  const getStatusColor = (status: TodoStatus): string => {
-    const colors: Record<TodoStatus, string> = {
-      open: 'blue',
-      in_progress: 'orange',
-      completed: 'green',
-      cancelled: 'red',
-      on_hold: 'gray',
-    };
-    return colors[status] || 'default';
-  };
-
-  // Get priority color
-  const getPriorityColor = (priority: TodoPriority): string => {
-    const colors: Record<TodoPriority, string> = {
-      low: 'green',
-      medium: 'blue',
-      high: 'orange',
-      critical: 'red',
-    };
-    return colors[priority] || 'default';
-  };
-
-  // Table columns
-  const columns: ColumnsType<TodoItem> = [
+  // Table columns – memoized so the table only re-renders when data-driving deps change
+  const columns: ColumnsType<TodoItem> = useMemo(() => [
     {
       title: 'ID',
       dataIndex: 'id',
@@ -252,7 +282,7 @@ const TodoList: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 120,
-      render: (category: string | null) => category || '-',
+      render: (category: string | null) => category ?? '-',
     },
     {
       title: 'Due Date',
@@ -284,7 +314,7 @@ const TodoList: React.FC = () => {
             key: 'complete',
             label: 'Complete',
             icon: <CheckOutlined />,
-            disabled: record.status === 'completed',
+            disabled: record.status === TodoStatus.Completed,
           },
           {
             type: 'divider',
@@ -316,7 +346,7 @@ const TodoList: React.FC = () => {
             <Button
               size="small"
               icon={<CheckOutlined />}
-              disabled={record.status === 'completed'}
+              disabled={record.status === TodoStatus.Completed}
               onClick={() => handleComplete(record.id)}
             >
               Complete
@@ -328,15 +358,15 @@ const TodoList: React.FC = () => {
         );
       },
     },
-  ];
+  ], [token, handleComplete, handleDelete, handleEdit]);
 
-  // Row selection
-  const rowSelection = {
+  // Row selection – memoized to avoid recreating on unrelated renders
+  const rowSelection = useMemo(() => ({
     selectedRowKeys,
     onChange: (selectedKeys: React.Key[]) => {
       setSelectedRowKeys(selectedKeys);
     },
-  };
+  }), [selectedRowKeys]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -359,31 +389,31 @@ const TodoList: React.FC = () => {
           <Search
             placeholder="Search todos..."
             style={{ width: 300 }}
-            onSearch={(value) => setFilters({ ...filters, search: value })}
+            onSearch={(value) => handleFilterChange({ search: value || undefined })}
             allowClear
           />
-          <Select
+          <Select<TodoStatus>
             placeholder="Status"
             style={{ width: 150 }}
-            onChange={(value) => setFilters({ ...filters, status: value })}
+            onChange={(value) => handleFilterChange({ status: value })}
             allowClear
           >
-            <Option value="open">Open</Option>
-            <Option value="in_progress">In Progress</Option>
-            <Option value="completed">Completed</Option>
-            <Option value="cancelled">Cancelled</Option>
-            <Option value="on_hold">On Hold</Option>
+            <Option value={TodoStatus.Open}>Open</Option>
+            <Option value={TodoStatus.InProgress}>In Progress</Option>
+            <Option value={TodoStatus.Completed}>Completed</Option>
+            <Option value={TodoStatus.Cancelled}>Cancelled</Option>
+            <Option value={TodoStatus.OnHold}>On Hold</Option>
           </Select>
-          <Select
+          <Select<TodoPriority>
             placeholder="Priority"
             style={{ width: 150 }}
-            onChange={(value) => setFilters({ ...filters, priority: value })}
+            onChange={(value) => handleFilterChange({ priority: value })}
             allowClear
           >
-            <Option value="low">Low</Option>
-            <Option value="medium">Medium</Option>
-            <Option value="high">High</Option>
-            <Option value="critical">Critical</Option>
+            <Option value={TodoPriority.Low}>Low</Option>
+            <Option value={TodoPriority.Medium}>Medium</Option>
+            <Option value={TodoPriority.High}>High</Option>
+            <Option value={TodoPriority.Critical}>Critical</Option>
           </Select>
         </Space>
 
@@ -408,8 +438,8 @@ const TodoList: React.FC = () => {
           onChange={(newPagination) => {
             setPagination((prev) => ({
               ...prev,
-              current: newPagination.current || 1,
-              pageSize: newPagination.pageSize || 20,
+              current: newPagination.current ?? 1,
+              pageSize: newPagination.pageSize ?? 20,
             }));
           }}
         />
@@ -440,19 +470,19 @@ const TodoList: React.FC = () => {
           </Form.Item>
           <Form.Item name="status" label="Status">
             <Select>
-              <Option value="open">Open</Option>
-              <Option value="in_progress">In Progress</Option>
-              <Option value="completed">Completed</Option>
-              <Option value="cancelled">Cancelled</Option>
-              <Option value="on_hold">On Hold</Option>
+              <Option value={TodoStatus.Open}>Open</Option>
+              <Option value={TodoStatus.InProgress}>In Progress</Option>
+              <Option value={TodoStatus.Completed}>Completed</Option>
+              <Option value={TodoStatus.Cancelled}>Cancelled</Option>
+              <Option value={TodoStatus.OnHold}>On Hold</Option>
             </Select>
           </Form.Item>
           <Form.Item name="priority" label="Priority">
             <Select>
-              <Option value="low">Low</Option>
-              <Option value="medium">Medium</Option>
-              <Option value="high">High</Option>
-              <Option value="critical">Critical</Option>
+              <Option value={TodoPriority.Low}>Low</Option>
+              <Option value={TodoPriority.Medium}>Medium</Option>
+              <Option value={TodoPriority.High}>High</Option>
+              <Option value={TodoPriority.Critical}>Critical</Option>
             </Select>
           </Form.Item>
           <Form.Item
@@ -487,18 +517,18 @@ const TodoList: React.FC = () => {
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={3} maxLength={10000} showCount />
           </Form.Item>
-          <Form.Item name="status" label="Status" initialValue="open">
+          <Form.Item name="status" label="Status" initialValue={TodoStatus.Open}>
             <Select>
-              <Option value="open">Open</Option>
-              <Option value="in_progress">In Progress</Option>
+              <Option value={TodoStatus.Open}>Open</Option>
+              <Option value={TodoStatus.InProgress}>In Progress</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="priority" label="Priority" initialValue="medium">
+          <Form.Item name="priority" label="Priority" initialValue={TodoPriority.Medium}>
             <Select>
-              <Option value="low">Low</Option>
-              <Option value="medium">Medium</Option>
-              <Option value="high">High</Option>
-              <Option value="critical">Critical</Option>
+              <Option value={TodoPriority.Low}>Low</Option>
+              <Option value={TodoPriority.Medium}>Medium</Option>
+              <Option value={TodoPriority.High}>High</Option>
+              <Option value={TodoPriority.Critical}>Critical</Option>
             </Select>
           </Form.Item>
           <Form.Item
