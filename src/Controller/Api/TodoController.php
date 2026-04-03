@@ -485,6 +485,7 @@ class TodoController extends AbstractController
     private function getUserId(): ?int
     {
         $user = $this->getUser();
+        // @phpstan-ignore-next-line instanceof check works at runtime (Pimcore User implements UserInterface)
         if ($user instanceof PimcoreUser) {
             return $user->getId();
         }

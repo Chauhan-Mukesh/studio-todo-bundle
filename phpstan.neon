@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - src/
+        - tests/
+    ignoreErrors:
+        # symfony/mercure-bundle is an optional dependency (listed in "suggest" in composer.json).
+        # When it is not installed these classes are unavailable; suppress PHPStan's false positives.
+        - message: '#Symfony\\Component\\Mercure\\#'
+          path: src/Service/MercurePublisher.php

@@ -23,6 +23,9 @@ class StatisticsService
 {
     private const CACHE_KEY_PREFIX = 'studio_todo_stats_';
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(
         private readonly TodoRepository $repository,
         private readonly CacheItemPoolInterface $cache,
@@ -32,6 +35,8 @@ class StatisticsService
 
     /**
      * Get overall statistics
+     *
+     * @return array<string, mixed>
      */
     public function getOverallStatistics(): array
     {
@@ -68,6 +73,8 @@ class StatisticsService
 
     /**
      * Get statistics grouped by user
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByUser(): array
     {
@@ -95,6 +102,8 @@ class StatisticsService
 
     /**
      * Get statistics grouped by status
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByStatus(): array
     {
@@ -111,6 +120,8 @@ class StatisticsService
 
     /**
      * Get statistics grouped by priority
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByPriority(): array
     {
@@ -142,6 +153,8 @@ class StatisticsService
 
     /**
      * Get statistics grouped by category
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getStatisticsByCategory(): array
     {
