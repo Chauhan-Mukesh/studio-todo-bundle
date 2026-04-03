@@ -431,12 +431,12 @@ const TodoList: React.FC = () => {
           <Form.Item
             name="title"
             label="Title"
-            rules={[{ required: true, message: 'Title is required' }]}
+            rules={[{ required: true, message: 'Title is required' }, { max: 255, message: 'Title must be 255 characters or fewer' }]}
           >
-            <Input />
+            <Input maxLength={255} showCount />
           </Form.Item>
           <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={3} maxLength={10000} showCount />
           </Form.Item>
           <Form.Item name="status" label="Status">
             <Select>
@@ -455,8 +455,12 @@ const TodoList: React.FC = () => {
               <Option value="critical">Critical</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="category" label="Category">
-            <Input />
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ max: 100, message: 'Category must be 100 characters or fewer' }]}
+          >
+            <Input maxLength={100} showCount />
           </Form.Item>
         </Form>
       </Modal>
@@ -476,12 +480,12 @@ const TodoList: React.FC = () => {
           <Form.Item
             name="title"
             label="Title"
-            rules={[{ required: true, message: 'Title is required' }]}
+            rules={[{ required: true, message: 'Title is required' }, { max: 255, message: 'Title must be 255 characters or fewer' }]}
           >
-            <Input />
+            <Input maxLength={255} showCount />
           </Form.Item>
           <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={3} maxLength={10000} showCount />
           </Form.Item>
           <Form.Item name="status" label="Status" initialValue="open">
             <Select>
@@ -497,8 +501,12 @@ const TodoList: React.FC = () => {
               <Option value="critical">Critical</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="category" label="Category">
-            <Input />
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ max: 100, message: 'Category must be 100 characters or fewer' }]}
+          >
+            <Input maxLength={100} showCount />
           </Form.Item>
         </Form>
       </Modal>
