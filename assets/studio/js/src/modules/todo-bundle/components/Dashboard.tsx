@@ -35,8 +35,27 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchStatistics();
-  }, [fetchStatistics]);
+    let mounted = true;
+
+    todoApi.fetchStatistics()
+      .then((response) => {
+        if (mounted && response.success && response.data) {
+          setStats(response.data);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          message.error('Failed to fetch statistics');
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => { mounted = false; };
+  }, []);
 
   if (loading) {
     return (
@@ -94,7 +113,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Todo List */}
-      <TodoList />
+      <TodoList onMutation={fetchStatistics} />
     </div>
   );
 };
