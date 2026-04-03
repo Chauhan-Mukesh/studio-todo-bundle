@@ -14,7 +14,6 @@ import {
   Form,
   Input,
   Select,
-  DatePicker,
   message,
   Dropdown,
   MenuProps,
@@ -55,14 +54,17 @@ const TodoList: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createForm] = Form.useForm();
 
+  // Destructure pagination values for stable useCallback dependencies
+  const { current: currentPage, pageSize } = pagination;
+
   // Fetch todos – stable reference via useCallback
   const fetchTodos = useCallback(async () => {
     setLoading(true);
     try {
       const response = await todoApi.fetchTodos(
         filters,
-        pagination.current,
-        pagination.pageSize
+        currentPage,
+        pageSize
       );
 
       if (response.success && response.data) {
@@ -76,12 +78,12 @@ const TodoList: React.FC = () => {
           }));
         }
       }
-    } catch (error) {
+    } catch {
       message.error('Failed to fetch todos');
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.current, pagination.pageSize]);
+  }, [filters, currentPage, pageSize]);
 
   useEffect(() => {
     fetchTodos();
@@ -107,7 +109,7 @@ const TodoList: React.FC = () => {
           await todoApi.deleteTodo(id);
           message.success('Todo deleted successfully');
           fetchTodos();
-        } catch (error) {
+        } catch {
           message.error('Failed to delete todo');
         }
       },
@@ -120,7 +122,7 @@ const TodoList: React.FC = () => {
       await todoApi.completeTodo(id);
       message.success('Todo completed successfully');
       fetchTodos();
-    } catch (error) {
+    } catch {
       message.error('Failed to complete todo');
     }
   };
@@ -140,7 +142,7 @@ const TodoList: React.FC = () => {
           message.success(`Successfully deleted ${selectedRowKeys.length} todos`);
           setSelectedRowKeys([]);
           fetchTodos();
-        } catch (error) {
+        } catch {
           message.error('Failed to bulk delete todos');
         }
       },
@@ -171,7 +173,7 @@ const TodoList: React.FC = () => {
       setEditingTodo(null);
       editForm.resetFields();
       fetchTodos();
-    } catch (error) {
+    } catch {
       message.error('Failed to update todo');
     }
   };
@@ -185,7 +187,7 @@ const TodoList: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       fetchTodos();
-    } catch (error) {
+    } catch {
       message.error('Failed to create todo');
     }
   };

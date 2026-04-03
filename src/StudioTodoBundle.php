@@ -13,6 +13,7 @@ namespace ChauhanMukesh\StudioTodoBundle;
 
 use Doctrine\DBAL\Connection;
 use Pimcore\Extension\Bundle\AbstractPimcoreBundle;
+use Pimcore\Extension\Bundle\Attribute\AsPimcoreBundle;
 use Pimcore\Extension\Bundle\Traits\PackageVersionTrait;
 use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
 
@@ -21,7 +22,12 @@ use ChauhanMukesh\StudioTodoBundle\Installer\Installer;
  *
  * This bundle provides comprehensive todo/task management functionality for Pimcore 12+
  * with full Studio UI integration, real-time updates, and workflow support.
+ *
+ * The #[AsPimcoreBundle] attribute enables auto-discovery via the Pimcore bundle
+ * manager (Pimcore 11+). The extra.pimcore.bundles key in composer.json provides
+ * compatibility with projects that use Composer-based bundle registration.
  */
+#[AsPimcoreBundle]
 class StudioTodoBundle extends AbstractPimcoreBundle
 {
     use PackageVersionTrait;
