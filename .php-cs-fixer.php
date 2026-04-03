@@ -16,5 +16,6 @@ return (new PhpCsFixer\Config())
         'phpdoc_order' => true,
         'declare_strict_types' => true,
     ])
+    ->setRiskyAllowed(true)
     ->setFinder($finder)
     ->setCacheFile(__DIR__ . '/.php-cs-fixer.cache');
