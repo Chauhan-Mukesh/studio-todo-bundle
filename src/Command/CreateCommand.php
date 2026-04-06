@@ -34,6 +34,9 @@ class CreateCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Configure available options for the command
+     */
     protected function configure(): void
     {
         $this
@@ -46,6 +49,9 @@ class CreateCommand extends Command
             ->addOption('category', 'c', InputOption::VALUE_OPTIONAL, 'Category');
     }
 
+    /**
+     * Execute the command: prompt for missing options and create the todo
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);

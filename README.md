@@ -485,9 +485,8 @@ tests/
 │   │   └── AuditLoggerTest.php
 │   ├── Model/
 │   │   └── TodoItemTest.php
-│   └── Enum/
-│       ├── TodoStatusTest.php
-│       └── TodoPriorityTest.php
+│   └── Repository/
+│       └── TodoRepositoryTest.php
 └── Integration/
     └── Api/
         └── TodoControllerTest.php
@@ -593,8 +592,6 @@ framework:
 
 ```
 src/
-├── Audit/                    # Audit logging services
-│   └── AuditLogger.php
 ├── Command/                  # CLI commands
 │   ├── ListCommand.php
 │   ├── CreateCommand.php
@@ -624,28 +621,37 @@ src/
 ├── MessageHandler/           # Message handlers
 │   └── TodoOperationHandler.php
 ├── Model/                    # Domain models
-│   ├── TodoItem.php
-│   └── AuditEntry.php
+│   └── TodoItem.php
 ├── Repository/               # Data access layer
 │   ├── TodoRepository.php
 │   └── AuditRepository.php
-├── Resources/config/         # Service definitions
-│   └── services.yaml
+├── Resources/                # Configuration and translations
+│   ├── config/
+│   │   ├── routes.yaml
+│   │   └── services.yaml
+│   └── translations/
+│       ├── StudioTodoBundle.en.yaml
+│       ├── StudioTodoBundle.de.yaml
+│       └── StudioTodoBundle.fr.yaml
 ├── Service/                  # Business logic
 │   ├── TodoManager.php
 │   ├── AuditLogger.php
-│   └── StatisticsService.php
+│   ├── StatisticsService.php
+│   └── MercurePublisher.php
 └── StudioTodoBundle.php      # Main bundle class
 
 assets/studio/                # React/TypeScript frontend
 ├── js/src/
-│   ├── modules/todo-bundle/
-│   │   ├── components/
-│   │   ├── services/
-│   │   ├── hooks/
-│   │   └── types/
-│   ├── i18n/
-│   └── plugins.ts
+│   └── modules/todo-bundle/
+│       ├── components/       # React UI components
+│       │   ├── Dashboard.tsx
+│       │   └── TodoList.tsx
+│       ├── hooks/            # Custom React hooks
+│       │   └── useMercureSSE.ts
+│       ├── services/         # API client
+│       │   └── todoApi.ts
+│       └── types/            # Shared TypeScript types
+│           └── index.ts
 ├── package.json
 ├── tsconfig.json
 └── rsbuild.config.ts

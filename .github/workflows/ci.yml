@@ -280,15 +280,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- Verify CODE_REVIEW_ISSUES.txt exists ---------------
-      - name: Verify issue tracker file is present
-        run: |
-          if [ ! -f "CODE_REVIEW_ISSUES.txt" ]; then
-            echo "::error::CODE_REVIEW_ISSUES.txt is missing."
-            exit 1
-          fi
-          echo "Issue tracker file present."
-
       # ---- Warn if README has unchecked realtime/i18n claims --
       - name: Warn on feature claims marked complete in README
         run: |

@@ -21,6 +21,7 @@ use Psr\Cache\CacheItemPoolInterface;
  */
 class StatisticsService
 {
+    /** Cache key prefix used for all statistics cache entries */
     private const CACHE_KEY_PREFIX = 'studio_todo_stats_';
 
     /**

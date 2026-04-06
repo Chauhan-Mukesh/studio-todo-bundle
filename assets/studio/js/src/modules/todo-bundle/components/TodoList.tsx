@@ -1,7 +1,10 @@
 /**
  * Todo List Component
  *
- * Main component for displaying and managing todos
+ * Main component for displaying and managing todos.  Renders a filterable,
+ * sortable Ant Design table with inline row actions (complete, edit, delete)
+ * and modals for creating or editing todos.  Listens to Mercure SSE for
+ * real-time updates so the list stays in sync across browser tabs.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -39,6 +42,7 @@ const { Option } = Select;
 const mercureHubUrl = (window as Window & { MERCURE_HUB_URL?: string }).MERCURE_HUB_URL ?? '/.well-known/mercure';
 
 // Pure helpers – defined outside the component so they are never re-created
+/** Return the Ant Design tag colour string for a given todo status */
 const getStatusColor = (status: TodoStatus): string => {
   const colors: Record<TodoStatus, string> = {
     [TodoStatus.Open]: 'blue',
@@ -50,6 +54,7 @@ const getStatusColor = (status: TodoStatus): string => {
   return colors[status] ?? 'default';
 };
 
+/** Return the Ant Design tag colour string for a given todo priority */
 const getPriorityColor = (priority: TodoPriority): string => {
   const colors: Record<TodoPriority, string> = {
     [TodoPriority.Low]: 'green',

@@ -23,6 +23,7 @@ use Symfony\Component\Mercure\Update;
  */
 class MercurePublisher
 {
+    /** Mercure topic prefix for all studio-todo events */
     private const TOPIC_PREFIX = 'studio-todo/';
 
     public function __construct(

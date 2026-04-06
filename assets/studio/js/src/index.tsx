@@ -1,5 +1,8 @@
 /**
  * Main entry point for Studio Todo Bundle
+ *
+ * Bootstraps the React application inside the `#studio-todo-root` element
+ * that Pimcore Studio injects into the page when the Todo widget is rendered.
  */
 
 import React from 'react';
@@ -7,7 +10,10 @@ import ReactDOM from 'react-dom/client';
 import Dashboard from './modules/todo-bundle/components/Dashboard';
 import { ConfigProvider, App } from 'antd';
 
-// Initialize the app
+/**
+ * Mount the React app into the `#studio-todo-root` DOM node.
+ * Safe to call before or after the DOMContentLoaded event.
+ */
 const initApp = () => {
   const rootElement = document.getElementById('studio-todo-root');
 

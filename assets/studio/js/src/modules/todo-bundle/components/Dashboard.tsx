@@ -1,7 +1,10 @@
 /**
  * Todo Dashboard Component
  *
- * Main dashboard with statistics and todo list
+ * Top-level view that renders summary statistics cards (total, open, completed,
+ * overdue) and the full TodoList below them.  Statistics are fetched on mount
+ * and can be refreshed by child components via the `onMutation` callback passed
+ * to TodoList.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,6 +24,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { token } = theme.useToken();
 
+  /** Fetch and update the statistics state; shows an error message on failure */
   const fetchStatistics = useCallback(async () => {
     try {
       const response = await todoApi.fetchStatistics();
