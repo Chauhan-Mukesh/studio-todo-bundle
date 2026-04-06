@@ -1,0 +1,124 @@
+# Studio Todo Bundle – Symfony/Pimcore Workflow Configuration Template
+#
+# Copy this file to your application's config/packages/ directory
+# (e.g. config/packages/studio_todo_workflow.yaml) to activate native
+# Symfony Workflow integration for the todo bundle.
+#
+# When this workflow is registered, the bundle's TodoWorkflowManager will
+# automatically detect the `state_machine.todo_workflow` service and delegate
+# all transition logic to Symfony's WorkflowInterface.  This means you get:
+#   - Guard expressions (e.g. require a specific role before approving)
+#   - Symfony's workflow.transition / workflow.entered / workflow.completed events
+#   - Full customisation of states and transitions for your project
+#
+# Without this file the bundle falls back to its own built-in state machine.
+#
+# How to use
+# ----------
+# 1. Copy this file to config/packages/studio_todo_workflow.yaml
+# 2. Set studio_todo.workflow.enabled: true in your studio_todo.yaml
+# 3. Optionally add guards and/or extra metadata below
+# 4. Clear the Symfony cache: bin/console cache:clear
+#
+# Compatible with: Pimcore 11 + 12, Symfony 6.4 + 7.x
+# Requires:        symfony/workflow (already included with pimcore/pimcore)
+#
+# Reference: https://symfony.com/doc/current/workflow.html
+
+framework:
+    workflows:
+        todo_workflow:
+            type: state_machine   # single-state: one active place at a time
+
+            # MarkingStore: reads/writes the workflowState property on
+            # ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowSubject
+            marking_store:
+                type: method
+                property: workflowState
+
+            supports:
+                - ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowSubject
+
+            # The initial place assigned to new todo items
+            initial_marking: open
+
+            # -----------------------------------------------------------------
+            # Places (states)
+            # Each place can carry optional metadata (label is used by the API)
+            # -----------------------------------------------------------------
+            places:
+                open:
+                    metadata:
+                        label: Open
+                in_progress:
+                    metadata:
+                        label: In Progress
+                on_hold:
+                    metadata:
+                        label: On Hold
+                pending_review:
+                    metadata:
+                        label: Pending Review
+                completed:
+                    metadata:
+                        label: Completed
+                cancelled:
+                    metadata:
+                        label: Cancelled
+
+            # -----------------------------------------------------------------
+            # Transitions
+            # Each transition can carry metadata (label) and optional guard
+            # expressions that restrict who/when the transition can fire.
+            # Guard expressions use the Symfony ExpressionLanguage component.
+            # -----------------------------------------------------------------
+            transitions:
+                start:
+                    from: open
+                    to:   in_progress
+                    metadata:
+                        label: Start
+
+                hold:
+                    from: in_progress
+                    to:   on_hold
+                    metadata:
+                        label: Put on Hold
+
+                resume:
+                    from: on_hold
+                    to:   in_progress
+                    metadata:
+                        label: Resume
+
+                request_review:
+                    from: in_progress
+                    to:   pending_review
+                    metadata:
+                        label: Request Review
+
+                approve:
+                    from: pending_review
+                    to:   completed
+                    metadata:
+                        label: Approve
+                    # Example guard: only users with ROLE_REVIEWER may approve
+                    # guard: "is_granted('ROLE_REVIEWER')"
+
+                reject:
+                    from: pending_review
+                    to:   in_progress
+                    metadata:
+                        label: Reject
+
+                cancel:
+                    from: [open, in_progress, on_hold, pending_review]
+                    to:   cancelled
+                    metadata:
+                        label: Cancel
+
+                reopen:
+                    from: [completed, cancelled]
+                    to:   open
+                    metadata:
+                        label: Reopen

@@ -49,6 +49,10 @@ services:
             $auditLogger: '@ChauhanMukesh\StudioTodoBundle\Service\AuditLogger'
             $eventDispatcher: '@event_dispatcher'
             $config: '%studio_todo.workflow%'
+            # Injected when the host application has defined a Symfony state machine
+            # named `todo_workflow` (e.g. via the sample in Resources/doc/config/workflow.yaml).
+            # The `@?` prefix makes the service optional: null is injected if not registered.
+            $symfonyWorkflow: '@?state_machine.todo_workflow'
 
     # Controllers
     ChauhanMukesh\StudioTodoBundle\Controller\Api\TodoController:
