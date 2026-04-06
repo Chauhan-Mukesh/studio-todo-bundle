@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace ChauhanMukesh\StudioTodoBundle\Workflow;
 
+use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvent;
 use ChauhanMukesh\StudioTodoBundle\Event\TodoEvents;
-use ChauhanMukesh\StudioTodoBundle\Enum\TodoStatus;
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
 use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
 use ChauhanMukesh\StudioTodoBundle\Service\AuditLogger;
