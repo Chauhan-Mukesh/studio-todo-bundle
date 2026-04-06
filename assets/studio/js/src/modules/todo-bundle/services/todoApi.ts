@@ -14,6 +14,9 @@ import type {
   Statistics,
   UserStatistics,
   AuditEntry,
+  WorkflowInfo,
+  WorkflowTransitionResult,
+  WorkflowDefinitionData,
 } from '../types';
 
 /**
@@ -223,6 +226,56 @@ class TodoApiService {
       return response.data;
     } catch (error) {
       console.error('Error fetching audit log:', error);
+      throw error;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workflow methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get the current workflow state and available transitions for a todo.
+   * Requires workflow integration to be enabled on the server.
+   */
+  async fetchWorkflowInfo(todoId: number): Promise<ApiResponse<WorkflowInfo>> {
+    try {
+      const response = await this.api.get(`/todos/${todoId}/workflow`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching workflow info:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply a named workflow transition to a todo.
+   *
+   * @param todoId     - ID of the todo
+   * @param transition - Transition name, e.g. "start", "approve"
+   */
+  async applyWorkflowTransition(
+    todoId: number,
+    transition: string
+  ): Promise<ApiResponse<WorkflowTransitionResult>> {
+    try {
+      const response = await this.api.post(`/todos/${todoId}/workflow/transition`, { transition });
+      return response.data;
+    } catch (error) {
+      console.error('Error applying workflow transition:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch the full workflow definition (all states, transitions and status mapping).
+   */
+  async fetchWorkflowDefinition(): Promise<ApiResponse<WorkflowDefinitionData>> {
+    try {
+      const response = await this.api.get('/workflow/definition');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching workflow definition:', error);
       throw error;
     }
   }

@@ -25,6 +25,7 @@
     "phpstan/phpstan": "^1.0"
   },
   "suggest": {
+    "symfony/workflow": "^6.4 || ^7.0: Native Symfony state machine support; the bundle includes a built-in fallback when not configured",
     "symfony/mercure-bundle": "Required for real-time todo updates via Mercure SSE",
     "pimcore/studio-ui-bundle": "Required for Pimcore Studio UI widget integration"
   },
