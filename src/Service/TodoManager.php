@@ -17,6 +17,7 @@ use ChauhanMukesh\StudioTodoBundle\Event\TodoEvents;
 use ChauhanMukesh\StudioTodoBundle\Message\TodoOperationMessage;
 use ChauhanMukesh\StudioTodoBundle\Model\TodoItem;
 use ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository;
+use ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowManager;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -37,7 +38,8 @@ class TodoManager
         private readonly AuditLogger $auditLogger,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly MessageBusInterface $messageBus,
-        private readonly array $config
+        private readonly array $config,
+        private readonly ?TodoWorkflowManager $workflowManager = null
     ) {
         $this->asyncEnabled = ($config['async']['enabled'] ?? false);
     }
@@ -56,6 +58,11 @@ class TodoManager
 
         // Create todo
         $todoId = $this->repository->create($data);
+
+        // Initialise workflow state when workflow integration is enabled
+        if ($this->workflowManager !== null && $this->workflowManager->isEnabled()) {
+            $this->workflowManager->initializeState($todoId, $userId);
+        }
 
         // Log audit
         $this->auditLogger->logCreate($todoId, $data, $userId);

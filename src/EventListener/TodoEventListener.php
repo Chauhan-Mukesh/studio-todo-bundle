@@ -147,4 +147,19 @@ class TodoEventListener
         ]);
         $this->mercurePublisher?->publish('status_changed', $todo, $event->getPreviousTodo());
     }
+
+    /**
+     * Handle workflow transition event
+     */
+    public function onWorkflowTransition(TodoEvent $event): void
+    {
+        $todo = $event->getTodo();
+        $this->logger?->info('Todo workflow transition applied', [
+            'todo_id'        => $todo->id,
+            'old_state'      => $event->getOldValue('workflow_state'),
+            'new_state'      => $event->getNewValue('workflow_state'),
+            'new_status'     => $todo->status->value,
+        ]);
+        $this->mercurePublisher?->publish('workflow_transition', $todo, $event->getPreviousTodo());
+    }
 }

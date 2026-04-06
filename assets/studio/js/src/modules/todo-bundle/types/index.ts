@@ -156,3 +156,63 @@ export interface UserStatistics {
   in_progress: number;
   completed: number;
 }
+
+// ---------------------------------------------------------------------------
+// Workflow types
+// ---------------------------------------------------------------------------
+
+/** A single workflow transition available from the current state */
+export interface WorkflowTransition {
+  /** Machine-readable transition name, e.g. "start", "approve" */
+  name: string;
+  /** Human-readable label, e.g. "Start", "Approve" */
+  label: string;
+  /** Source state name */
+  from: string;
+  /** Target state name */
+  to: string;
+  /** Human-readable label for the target state */
+  to_label: string;
+}
+
+/** Workflow info returned for a specific todo */
+export interface WorkflowInfo {
+  /** Configured workflow name */
+  workflow_name: string;
+  /** Current state of the todo in the workflow */
+  current_state: string;
+  /** Transitions that can be applied right now */
+  available_transitions: WorkflowTransition[];
+}
+
+/** Payload returned after a successful workflow transition */
+export interface WorkflowTransitionResult {
+  /** The updated todo item */
+  todo: TodoItem;
+  /** New workflow state after the transition */
+  current_state: string;
+  /** Transitions available from the new state */
+  available_transitions: WorkflowTransition[];
+}
+
+/** A single state in the workflow definition */
+export interface WorkflowStateDefinition {
+  label: string;
+  initial: boolean;
+}
+
+/** A single transition entry in the workflow definition */
+export interface WorkflowTransitionDefinition {
+  froms: string[];
+  to: string;
+  label: string;
+}
+
+/** Full workflow definition as returned by GET /workflow/definition */
+export interface WorkflowDefinitionData {
+  name: string;
+  states: Record<string, WorkflowStateDefinition>;
+  transitions: Record<string, WorkflowTransitionDefinition>;
+  /** Maps workflow state name → TodoStatus value */
+  status_map: Record<string, string>;
+}

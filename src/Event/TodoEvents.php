@@ -55,4 +55,9 @@ final class TodoEvents
      * Dispatched when a todo status changes
      */
     public const string STATUS_CHANGED = 'studio_todo.status_changed';
+
+    /**
+     * Dispatched when a workflow transition is successfully applied to a todo
+     */
+    public const string WORKFLOW_TRANSITION = 'studio_todo.workflow_transition';
 }

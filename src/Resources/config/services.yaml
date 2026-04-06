@@ -25,6 +25,7 @@ services:
             $eventDispatcher: '@event_dispatcher'
             $messageBus: '@messenger.default_bus'
             $config: '%studio_todo.config%'
+            $workflowManager: '@ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowManager'
 
     ChauhanMukesh\StudioTodoBundle\Service\AuditLogger:
         arguments:
@@ -40,6 +41,14 @@ services:
     ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher:
         arguments:
             $hub: '@?mercure.hub.default'
+
+    # Workflow Services
+    ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowManager:
+        arguments:
+            $repository: '@ChauhanMukesh\StudioTodoBundle\Repository\TodoRepository'
+            $auditLogger: '@ChauhanMukesh\StudioTodoBundle\Service\AuditLogger'
+            $eventDispatcher: '@event_dispatcher'
+            $config: '%studio_todo.workflow%'
 
     # Controllers
     ChauhanMukesh\StudioTodoBundle\Controller\Api\TodoController:
@@ -57,6 +66,13 @@ services:
     ChauhanMukesh\StudioTodoBundle\Controller\Api\StatsController:
         arguments:
             $statsService: '@ChauhanMukesh\StudioTodoBundle\Service\StatisticsService'
+        tags: ['controller.service_arguments']
+        public: true
+
+    ChauhanMukesh\StudioTodoBundle\Controller\Api\WorkflowController:
+        arguments:
+            $todoManager: '@ChauhanMukesh\StudioTodoBundle\Service\TodoManager'
+            $workflowManager: '@ChauhanMukesh\StudioTodoBundle\Workflow\TodoWorkflowManager'
         tags: ['controller.service_arguments']
         public: true
 
@@ -88,14 +104,15 @@ services:
         arguments:
             $mercurePublisher: '@?ChauhanMukesh\StudioTodoBundle\Service\MercurePublisher'
         tags:
-            - { name: kernel.event_listener, event: studio_todo.created, method: onTodoCreated }
-            - { name: kernel.event_listener, event: studio_todo.updated, method: onTodoUpdated }
-            - { name: kernel.event_listener, event: studio_todo.deleted, method: onTodoDeleted }
-            - { name: kernel.event_listener, event: studio_todo.completed, method: onTodoCompleted }
-            - { name: kernel.event_listener, event: studio_todo.restored, method: onTodoRestored }
-            - { name: kernel.event_listener, event: studio_todo.assigned, method: onTodoAssigned }
-            - { name: kernel.event_listener, event: studio_todo.priority_changed, method: onTodoPriorityChanged }
-            - { name: kernel.event_listener, event: studio_todo.status_changed, method: onTodoStatusChanged }
+            - { name: kernel.event_listener, event: studio_todo.created,           method: onTodoCreated }
+            - { name: kernel.event_listener, event: studio_todo.updated,           method: onTodoUpdated }
+            - { name: kernel.event_listener, event: studio_todo.deleted,           method: onTodoDeleted }
+            - { name: kernel.event_listener, event: studio_todo.completed,         method: onTodoCompleted }
+            - { name: kernel.event_listener, event: studio_todo.restored,          method: onTodoRestored }
+            - { name: kernel.event_listener, event: studio_todo.assigned,          method: onTodoAssigned }
+            - { name: kernel.event_listener, event: studio_todo.priority_changed,  method: onTodoPriorityChanged }
+            - { name: kernel.event_listener, event: studio_todo.status_changed,    method: onTodoStatusChanged }
+            - { name: kernel.event_listener, event: studio_todo.workflow_transition, method: onWorkflowTransition }
 
     # Message Handlers
     ChauhanMukesh\StudioTodoBundle\MessageHandler\TodoOperationHandler:
