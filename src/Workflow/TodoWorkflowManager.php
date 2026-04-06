@@ -388,7 +388,7 @@ class TodoWorkflowManager
                 'label'    => $definition['label'],
                 'from'     => $currentState,
                 'to'       => $to,
-                'to_label' => WorkflowDefinition::STATES[$to]['label'] ?? $to,
+                'to_label' => WorkflowDefinition::STATES[$to]['label'],
             ];
         }
 
